@@ -161,7 +161,7 @@ public sealed class FrameworkTests : IClassFixture<ApiFactory>
         Assert.Contains("/api/v1/auth/login", body);
         using var document = JsonDocument.Parse(body);
         var paths = document.RootElement.GetProperty("paths");
-        Assert.Equal(60, paths.EnumerateObject().Where(path => path.Name.StartsWith("/api/v1/", StringComparison.Ordinal) &&
+        Assert.Equal(63, paths.EnumerateObject().Where(path => path.Name.StartsWith("/api/v1/", StringComparison.Ordinal) &&
             !path.Name.Contains("test-probe", StringComparison.Ordinal)).Sum(path => path.Value.EnumerateObject().Count(method =>
                 method.Name is "get" or "post" or "patch" or "put" or "delete")));
         Assert.Equal("#/components/schemas/ApiResponseOfEventResponse", paths.GetProperty("/api/v1/guilds/{guildId}/events/{eventId}")
