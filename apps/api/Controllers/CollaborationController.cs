@@ -12,7 +12,7 @@ public sealed class CollaborationController(YanyunDbContext database, BusinessOp
 {
     [HttpPost("guilds/{guildId:guid}/applications")]
     [ProducesResponseType<ApiResponse<ApplicationResponse>>(201)]
-    public async Task<IActionResult> Apply(Guid guildId, ApplicationWrite request, CancellationToken token)
+    public async Task<ActionResult<ApiResponse<ApplicationResponse>>> Apply(Guid guildId, ApplicationWrite request, CancellationToken token)
     {
         var result = await operations.WriteAsync($"application.create:{guildId}", request, guildId, null, false, async () =>
         {
@@ -31,15 +31,13 @@ public sealed class CollaborationController(YanyunDbContext database, BusinessOp
         return StatusCode(201, ApiResponse.Success(result));
     }
     [HttpGet("guilds/{guildId:guid}/applications")]
-    [ProducesResponseType<ApiResponse<PagedResponse<ApplicationResponse>>>(200)]
-    public async Task<object> GuildApplications(Guid guildId, CancellationToken token, int page = 1,
+    public async Task<ApiResponse<PagedResponse<ApplicationResponse>>> GuildApplications(Guid guildId, CancellationToken token, int page = 1,
         [FromQuery(Name = "page_size")] int pageSize = 20, string? status = null)
     { await operations.MemberAsync(guildId, true, false, token); return await Applications(guildId, true, page, pageSize, status, token); }
     [HttpGet("me/applications")]
-    [ProducesResponseType<ApiResponse<PagedResponse<ApplicationResponse>>>(200)]
-    public Task<object> MyApplications(CancellationToken token, int page = 1, [FromQuery(Name = "page_size")] int pageSize = 20, string? status = null)
+    public Task<ApiResponse<PagedResponse<ApplicationResponse>>> MyApplications(CancellationToken token, int page = 1, [FromQuery(Name = "page_size")] int pageSize = 20, string? status = null)
         => Applications(null, false, page, pageSize, status, token);
-    private async Task<object> Applications(Guid? guildId, bool admin, int page, int size, string? status, CancellationToken token)
+    private async Task<ApiResponse<PagedResponse<ApplicationResponse>>> Applications(Guid? guildId, bool admin, int page, int size, string? status, CancellationToken token)
     {
         operations.RejectUnknownQuery("page", "page_size", "status"); BusinessOperations.Pagination(page, size);
         if (status is not null and not ("pending" or "approved" or "rejected" or "withdrawn")) throw BusinessOperations.Invalid("申请状态不正确");
@@ -49,12 +47,11 @@ public sealed class CollaborationController(YanyunDbContext database, BusinessOp
         var rows = await query.OrderByDescending(application => application.CreatedAt).ThenBy(application => application.Id).Skip((page - 1) * size).Take(size).ToListAsync(token);
         await views.LoadGuildsAsync(rows.Select(application => application.GuildId), token);
         if (admin) await views.LoadUsersAsync(rows.Select(application => application.UserId), token);
-        var items = new List<object>(); foreach (var application in rows) items.Add(await views.ApplicationAsync(application, admin, token));
-        return ApiResponse.Success(new { Items = items, Page = page, PageSize = size, Total = total });
+        var items = new List<ApplicationResponse>(); foreach (var application in rows) items.Add(await views.ApplicationAsync(application, admin, token));
+        return ApiResponse.Success(new PagedResponse<ApplicationResponse>([.. items], page, size, total));
     }
     [HttpPatch("applications/{applicationId:guid}")]
-    [ProducesResponseType<ApiResponse<ApplicationDecisionResponse>>(200)]
-    public async Task<object> Decide(Guid applicationId, ApplicationDecision request, CancellationToken token)
+    public async Task<ApiResponse<ApplicationDecisionResponse>> Decide(Guid applicationId, ApplicationDecision request, CancellationToken token)
     {
         var snapshot = await database.Applications.AsNoTracking().SingleOrDefaultAsync(application => application.Id == applicationId, token) ?? throw BusinessOperations.Missing();
         return ApiResponse.Success(await operations.WriteAsync($"application.decide:{applicationId}", request, snapshot.GuildId, null,
@@ -80,8 +77,7 @@ public sealed class CollaborationController(YanyunDbContext database, BusinessOp
         }, token));
     }
     [HttpPost("applications/{applicationId:guid}/withdraw")]
-    [ProducesResponseType<ApiResponse<ApplicationResponse>>(200)]
-    public async Task<object> Withdraw(Guid applicationId, CancellationToken token) => ApiResponse.Success(
+    public async Task<ApiResponse<ApplicationResponse>> Withdraw(Guid applicationId, CancellationToken token) => ApiResponse.Success(
         await operations.WriteAsync($"application.withdraw:{applicationId}", new { applicationId }, null, null, false, async () =>
         {
             var application = await database.Applications.SingleOrDefaultAsync(application => application.Id == applicationId && application.UserId == operations.UserId, token) ?? throw BusinessOperations.Missing();
@@ -92,7 +88,7 @@ public sealed class CollaborationController(YanyunDbContext database, BusinessOp
         }, token));
     [HttpPost("guilds/{guildId:guid}/invitations")]
     [ProducesResponseType<ApiResponse<InvitationCreatedResponse>>(201)]
-    public async Task<IActionResult> Invite(Guid guildId, InvitationWrite request, CancellationToken token)
+    public async Task<ActionResult<ApiResponse<InvitationCreatedResponse>>> Invite(Guid guildId, InvitationWrite request, CancellationToken token)
     {
         var result = await operations.WriteAsync($"invitation.create:{guildId}", request, guildId, null, false, async () =>
         {
@@ -117,15 +113,13 @@ public sealed class CollaborationController(YanyunDbContext database, BusinessOp
         return StatusCode(201, ApiResponse.Success(result));
     }
     [HttpGet("guilds/{guildId:guid}/invitations")]
-    [ProducesResponseType<ApiResponse<PagedResponse<InvitationResponse>>>(200)]
-    public async Task<object> GuildInvitations(Guid guildId, CancellationToken token, int page = 1,
+    public async Task<ApiResponse<PagedResponse<InvitationResponse>>> GuildInvitations(Guid guildId, CancellationToken token, int page = 1,
         [FromQuery(Name = "page_size")] int pageSize = 20, string? type = null, string? status = null)
     { await operations.MemberAsync(guildId, true, false, token); return await Invitations(guildId, page, pageSize, type, status, token); }
     [HttpGet("me/invitations")]
-    [ProducesResponseType<ApiResponse<PagedResponse<InvitationResponse>>>(200)]
-    public Task<object> MyInvitations(CancellationToken token, int page = 1, [FromQuery(Name = "page_size")] int pageSize = 20, string? status = null)
+    public Task<ApiResponse<PagedResponse<InvitationResponse>>> MyInvitations(CancellationToken token, int page = 1, [FromQuery(Name = "page_size")] int pageSize = 20, string? status = null)
         => Invitations(null, page, pageSize, null, status, token);
-    private async Task<object> Invitations(Guid? guildId, int page, int size, string? type, string? status, CancellationToken token)
+    private async Task<ApiResponse<PagedResponse<InvitationResponse>>> Invitations(Guid? guildId, int page, int size, string? type, string? status, CancellationToken token)
     {
         operations.RejectUnknownQuery(guildId is null ? ["page", "page_size", "status"] : ["page", "page_size", "type", "status"]);
         BusinessOperations.Pagination(page, size);
@@ -138,35 +132,30 @@ public sealed class CollaborationController(YanyunDbContext database, BusinessOp
         var total = await query.CountAsync(token);
         var rows = await query.OrderByDescending(invitation => invitation.CreatedAt).ThenBy(invitation => invitation.Id).Skip((page - 1) * size).Take(size).ToListAsync(token);
         await views.LoadGuildsAsync(rows.Select(invitation => invitation.GuildId), token);
-        var items = new List<object>(); foreach (var invitation in rows) items.Add(await views.InvitationAsync(invitation, token));
-        return ApiResponse.Success(new { Items = items, Page = page, PageSize = size, Total = total });
+        var items = new List<InvitationResponse>(); foreach (var invitation in rows) items.Add(await views.InvitationAsync(invitation, token));
+        return ApiResponse.Success(new PagedResponse<InvitationResponse>([.. items], page, size, total));
     }
     [HttpGet("invitations/code/{code}")]
-    [ProducesResponseType<ApiResponse<InvitationPreviewResponse>>(200)]
-    public async Task<object> PreviewCode(string code, CancellationToken token) => ApiResponse.Success(await Preview(await FindCode(code, token), token));
+    public async Task<ApiResponse<InvitationPreviewResponse>> PreviewCode(string code, CancellationToken token) => ApiResponse.Success(await Preview(await FindCode(code, token), token));
     [HttpGet("invitations/{invitationId:guid}")]
-    [ProducesResponseType<ApiResponse<InvitationPreviewResponse>>(200)]
-    public async Task<object> PreviewDirect(Guid invitationId, CancellationToken token) => ApiResponse.Success(await Preview(await FindDirect(invitationId, token), token));
-    private async Task<object> Preview(Invitation invitation, CancellationToken token)
+    public async Task<ApiResponse<InvitationPreviewResponse>> PreviewDirect(Guid invitationId, CancellationToken token) => ApiResponse.Success(await Preview(await FindDirect(invitationId, token), token));
+    private async Task<InvitationPreviewResponse> Preview(Invitation invitation, CancellationToken token)
     {
         var guild = await operations.GuildAsync(invitation.GuildId, token);
         var inGuild = await database.Memberships.AnyAsync(member => member.UserId == operations.UserId, token);
         var validProfile = await database.Profiles.AnyAsync(profile => profile.UserId == operations.UserId && profile.DeletedAt == null && profile.Server == guild.Server, token);
         var reason = InvitationError(invitation) ?? (inGuild ? "ALREADY_IN_GUILD" : !validProfile ? "PROFILE_REQUIRED" : null);
         var inviter = await database.Users.Where(user => user.Id == invitation.CreatedBy).Select(user => user.Nickname).SingleOrDefaultAsync(token);
-        return new { Invitation = await views.InvitationAsync(invitation, token), Guild = await views.GuildAsync(guild, token),
-            InviterNickname = inviter, CanAccept = reason is null, CanDecline = invitation.Type == "direct" && invitation.Status == "pending" && invitation.ExpiresAt > DateTimeOffset.UtcNow,
-            UnavailableReason = reason };
+        return new InvitationPreviewResponse(await views.InvitationAsync(invitation, token), await views.GuildAsync(guild, token),
+            inviter, reason is null, invitation.Type == "direct" && invitation.Status == "pending" && invitation.ExpiresAt > DateTimeOffset.UtcNow, reason);
     }
     [HttpPost("invitations/code/{code}/accept")]
-    [ProducesResponseType<ApiResponse<MembershipResponse>>(200)]
-    public async Task<object> AcceptCode(string code, CancellationToken token)
+    public async Task<ApiResponse<MembershipResponse>> AcceptCode(string code, CancellationToken token)
     { var invitation = await FindCode(code, token); return await Accept(invitation.Id, token); }
     [HttpPost("invitations/{invitationId:guid}/accept")]
-    [ProducesResponseType<ApiResponse<MembershipResponse>>(200)]
-    public async Task<object> AcceptDirect(Guid invitationId, CancellationToken token)
+    public async Task<ApiResponse<MembershipResponse>> AcceptDirect(Guid invitationId, CancellationToken token)
     { await FindDirect(invitationId, token); return await Accept(invitationId, token); }
-    private async Task<object> Accept(Guid invitationId, CancellationToken token)
+    private async Task<ApiResponse<MembershipResponse>> Accept(Guid invitationId, CancellationToken token)
     {
         var snapshot = await database.Invitations.AsNoTracking().SingleOrDefaultAsync(invitation => invitation.Id == invitationId, token) ?? throw BusinessOperations.Missing();
         return ApiResponse.Success(await operations.WriteAsync($"invitation.accept:{invitationId}", new { invitationId }, snapshot.GuildId, null, true, async () =>
@@ -185,12 +174,10 @@ public sealed class CollaborationController(YanyunDbContext database, BusinessOp
         }, token));
     }
     [HttpPost("invitations/{invitationId:guid}/decline")]
-    [ProducesResponseType<ApiResponse<InvitationResponse>>(200)]
-    public Task<object> Decline(Guid invitationId, CancellationToken token) => ChangeInvitation(invitationId, false, token);
+    public Task<ApiResponse<InvitationResponse>> Decline(Guid invitationId, CancellationToken token) => ChangeInvitation(invitationId, false, token);
     [HttpPost("invitations/{invitationId:guid}/revoke")]
-    [ProducesResponseType<ApiResponse<InvitationResponse>>(200)]
-    public Task<object> Revoke(Guid invitationId, CancellationToken token) => ChangeInvitation(invitationId, true, token);
-    private async Task<object> ChangeInvitation(Guid id, bool revoke, CancellationToken token) => ApiResponse.Success(
+    public Task<ApiResponse<InvitationResponse>> Revoke(Guid invitationId, CancellationToken token) => ChangeInvitation(invitationId, true, token);
+    private async Task<ApiResponse<InvitationResponse>> ChangeInvitation(Guid id, bool revoke, CancellationToken token) => ApiResponse.Success(
         await operations.WriteAsync($"invitation.{(revoke ? "revoke" : "decline")}:{id}", new { id }, null, null, false, async () =>
         {
             var invitation = await database.Invitations.SingleOrDefaultAsync(invitation => invitation.Id == id, token) ?? throw BusinessOperations.Missing();

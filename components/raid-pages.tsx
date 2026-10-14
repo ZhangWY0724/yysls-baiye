@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api, idempotency } from "@/lib/api";
-import { Me, Member, Page, Profile, Raid, Template } from "@/lib/contracts";
+import { Assignment, Me, Member, MyWeek, Page, Profile, Raid, RaidWeek, Template } from "@/lib/contracts";
 import {
   canManage,
   Card,
@@ -56,12 +56,6 @@ function weekOffset(key: string) {
 }
 const localTime = (iso: string) => beijingIso(Date.parse(iso)).slice(0, 16);
 const utcTime = (input: string) => new Date(`${input}:00+08:00`).toISOString();
-type Week = {
-  week_key: string;
-  week_start: string;
-  week_end: string;
-  events: Raid[];
-};
 export function RaidsPage({
   id,
   me,
@@ -80,7 +74,7 @@ export function RaidsPage({
   const [templatePage, setTemplatePage] = useState(1);
   const [templateSearch, setTemplateSearch] = useState("");
   const templateFilter = useDebounced(templateSearch);
-  const week = useQuery<Week>(`/guilds/${id}/events?week=${weekKey(offset)}`);
+  const week = useQuery<RaidWeek>(`/guilds/${id}/events?week=${weekKey(offset)}`);
   const templates = useQuery<Page<Template>>(
     create || templatesOpen
       ? `/guilds/${id}/dungeon-templates?page=${templatePage}&q=${encodeURIComponent(templateFilter)}`
@@ -724,7 +718,7 @@ function EventDetail({
   const raid = query.data;
   const confirmedIn = (role: string) =>
     raid!.confirmed_assignments.filter((item) => item.slot_role === role);
-  const cancelButton = (assignment: Raid["confirmed_assignments"][number], label: string) =>
+  const cancelButton = (assignment: Assignment, label: string) =>
     !raid!.is_locked &&
     (raid!.can_manage || assignment.user_id === me.user_id) && (
       <button
@@ -1007,21 +1001,6 @@ function EventDetail({
   );
 }
 export function MyWeekPage({ me, unread }: { me: Me; unread: number }) {
-  type MyWeek = {
-    week_key: string;
-    items: {
-      event: Pick<
-        Raid,
-        "id" | "guild_id" | "title" | "starts_at" | "status" | "version"
-      > & { can_cancel: boolean };
-      assignment: {
-        id: string;
-        status: string;
-        slot_role: string;
-        profile: { name: string };
-      };
-    }[];
-  };
   const query = useQuery<MyWeek>("/me/week");
   const action = useAction(query.reload);
   const raidsHref = me.membership ? `/guilds/${me.membership.guild_id}/raids` : "/guilds";

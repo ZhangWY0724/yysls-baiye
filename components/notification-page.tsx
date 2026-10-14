@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { api } from "@/lib/api";
-import { Notice } from "@/lib/contracts";
+import { Notice, NoticePage } from "@/lib/contracts";
 import {
   Card,
   date,
@@ -27,7 +27,7 @@ export function noticeLink(notice: Notice) {
 export function NotificationPage({ changed }: { changed: () => void }) {
   const [cursor, setCursor] = useState<string | null>(null);
   const [unread, setUnread] = useState(false);
-  const query = useQuery<{ items: Notice[]; next_cursor: string | null }>(
+  const query = useQuery<NoticePage>(
     `/notifications?unread_only=${unread}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}&limit=20`,
   );
   const action = useAction(changed);

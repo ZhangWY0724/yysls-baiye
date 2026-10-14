@@ -34,8 +34,8 @@ public sealed class BusinessOperations(YanyunDbContext database, IHttpContextAcc
         }
     }
 
-    public async Task<JsonElement> WriteAsync(string operation, object request, Guid? guildId, Guid? eventId,
-        bool idempotent, Func<Task<object>> action, CancellationToken cancellationToken)
+    public async Task<T> WriteAsync<T>(string operation, object request, Guid? guildId, Guid? eventId,
+        bool idempotent, Func<Task<T>> action, CancellationToken cancellationToken)
     {
         await using var transaction = await BeginAsync(cancellationToken);
         var account = await database.Users.AsNoTracking().SingleOrDefaultAsync(user => user.Id == UserId, cancellationToken)
@@ -56,7 +56,7 @@ public sealed class BusinessOperations(YanyunDbContext database, IHttpContextAcc
             if (previous is not null && previous.ExpiresAt > DateTimeOffset.UtcNow)
             {
                 if (previous.RequestHash != hash) throw Conflict("IDEMPOTENCY_KEY_REUSED", "同一请求标识不能用于不同内容");
-                return BusinessJson.Parse(previous.ResponseJson);
+                return JsonSerializer.Deserialize<T>(previous.ResponseJson, BusinessJson.Options)!;
             }
             if (previous is not null) database.Idempotency.Remove(previous);
         }
@@ -79,7 +79,7 @@ public sealed class BusinessOperations(YanyunDbContext database, IHttpContextAcc
         await transaction.CommitAsync(cancellationToken);
         await transaction.DisposeAsync();
         await publisher.FlushAsync(cancellationToken);
-        return BusinessJson.Parse(BusinessJson.Serialize(result));
+        return result;
     }
 
     public async Task<Membership> MemberAsync(Guid guildId, bool manage, bool owner, CancellationToken token)

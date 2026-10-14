@@ -20,3 +20,5 @@ artifacts/
 *.suo
 claude-check.log
 .idea/
+claude-api.log
+openapi.tmp.json

@@ -12,8 +12,7 @@ public sealed class GuildsController(YanyunDbContext database, BusinessOperation
     BusinessViews views, CleanupService cleanup) : ControllerBase
 {
     [HttpGet]
-    [ProducesResponseType<ApiResponse<PagedResponse<GuildResponse>>>(200)]
-    public async Task<object> List(CancellationToken token, int page = 1, [FromQuery(Name = "page_size")] int pageSize = 20,
+    public async Task<ApiResponse<PagedResponse<GuildResponse>>> List(CancellationToken token, int page = 1, [FromQuery(Name = "page_size")] int pageSize = 20,
         string? q = null, string? server = null, bool? recruiting = null)
     {
         operations.RejectUnknownQuery("page", "page_size", "q", "server", "recruiting");
@@ -25,13 +24,13 @@ public sealed class GuildsController(YanyunDbContext database, BusinessOperation
         var total = await query.CountAsync(token);
         var rows = await query.OrderBy(guild => guild.Name).ThenBy(guild => guild.Id).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(token);
         await views.LoadGuildsAsync(rows.Select(guild => guild.Id), token);
-        var items = new List<object>();
+        var items = new List<GuildResponse>();
         foreach (var guild in rows) items.Add(await views.GuildAsync(guild, token));
-        return ApiResponse.Success(new { Items = items, Page = page, PageSize = pageSize, Total = total });
+        return ApiResponse.Success(new PagedResponse<GuildResponse>([.. items], page, pageSize, total));
     }
     [HttpPost]
     [ProducesResponseType<ApiResponse<GuildCreatedResponse>>(201)]
-    public async Task<IActionResult> Create(GuildWrite request, CancellationToken token)
+    public async Task<ActionResult<ApiResponse<GuildCreatedResponse>>> Create(GuildWrite request, CancellationToken token)
     {
         Guid guildId = Guid.CreateVersion7();
         var result = await operations.WriteAsync("guild.create", request, guildId, null, true, async () =>
@@ -55,8 +54,7 @@ public sealed class GuildsController(YanyunDbContext database, BusinessOperation
         return StatusCode(201, ApiResponse.Success(result));
     }
     [HttpGet("{guildId:guid}")]
-    [ProducesResponseType<ApiResponse<GuildDetailResponse>>(200)]
-    public async Task<object> Get(Guid guildId, CancellationToken token)
+    public async Task<ApiResponse<GuildDetailResponse>> Get(Guid guildId, CancellationToken token)
     {
         var guild = await operations.GuildAsync(guildId, token);
         var members = await database.Memberships.Where(member => member.GuildId == guildId).OrderBy(member => member.JoinedAt).Take(20).ToListAsync(token);
@@ -74,8 +72,7 @@ public sealed class GuildsController(YanyunDbContext database, BusinessOperation
             application is null ? null : await views.ApplicationAsync(application, false, token)));
     }
     [HttpPatch("{guildId:guid}")]
-    [ProducesResponseType<ApiResponse<GuildResponse>>(200)]
-    public async Task<object> Update(Guid guildId, JsonElement body, CancellationToken token)
+    public async Task<ApiResponse<GuildResponse>> Update(Guid guildId, JsonElement body, CancellationToken token)
     {
         ProfilesController.CheckFields(body, "name", "intro", "recruit_requirements", "recruiting", "expected_version");
         if (body.EnumerateObject().Count() <= 1) throw BusinessOperations.Invalid("至少修改一个字段");
@@ -95,18 +92,16 @@ public sealed class GuildsController(YanyunDbContext database, BusinessOperation
         }, token));
     }
     [HttpDelete("{guildId:guid}")]
-    [ProducesResponseType<ApiResponse<DeletedResponse>>(200)]
-    public async Task<object> Delete(Guid guildId, CancellationToken token) => ApiResponse.Success(
+    public async Task<ApiResponse<DeletedResponse>> Delete(Guid guildId, CancellationToken token) => ApiResponse.Success(
         await operations.WriteAsync($"guild.delete:{guildId}", new { guildId }, guildId, null, false, async () =>
         {
             await operations.MemberAsync(guildId, false, true, token);
             var guild = await operations.GuildAsync(guildId, token);
             BusinessOperations.Version(guild.Version, operations.HeaderVersion()); operations.ConfirmHeader("X-Confirm-Guild-Id", guildId);
-            await cleanup.GuildAsync(guildId, token); return new { Deleted = true };
+            await cleanup.GuildAsync(guildId, token); return new DeletedResponse(true);
         }, token));
     [HttpGet("{guildId:guid}/members")]
-    [ProducesResponseType<ApiResponse<PagedResponse<MemberResponse>>>(200)]
-    public async Task<object> Members(Guid guildId, CancellationToken token, int page = 1,
+    public async Task<ApiResponse<PagedResponse<MemberResponse>>> Members(Guid guildId, CancellationToken token, int page = 1,
         [FromQuery(Name = "page_size")] int pageSize = 20, string? q = null, string? role = null)
     {
         await operations.MemberAsync(guildId, false, false, token); BusinessOperations.Pagination(page, pageSize);
@@ -117,12 +112,11 @@ public sealed class GuildsController(YanyunDbContext database, BusinessOperation
         var total = await query.CountAsync(token);
         var members = await query.OrderBy(member => member.JoinedAt).ThenBy(member => member.Id).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(token);
         await views.LoadUsersAsync(members.Select(member => member.UserId), token);
-        var items = new List<object>(); foreach (var member in members) items.Add(await views.MemberAsync(member, token));
-        return ApiResponse.Success(new { Items = items, Page = page, PageSize = pageSize, Total = total });
+        var items = new List<MemberResponse>(); foreach (var member in members) items.Add(await views.MemberAsync(member, token));
+        return ApiResponse.Success(new PagedResponse<MemberResponse>([.. items], page, pageSize, total));
     }
     [HttpPatch("{guildId:guid}/members/{membershipId:guid}/role")]
-    [ProducesResponseType<ApiResponse<RoleChangedResponse>>(200)]
-    public async Task<object> Role(Guid guildId, Guid membershipId, MemberRoleWrite request, CancellationToken token) => ApiResponse.Success(
+    public async Task<ApiResponse<RoleChangedResponse>> Role(Guid guildId, Guid membershipId, MemberRoleWrite request, CancellationToken token) => ApiResponse.Success(
         await operations.WriteAsync($"member.role:{membershipId}", request, guildId, null, false, async () =>
         {
             await operations.MemberAsync(guildId, false, true, token);
@@ -131,11 +125,10 @@ public sealed class GuildsController(YanyunDbContext database, BusinessOperation
             if (member.Role == "owner") throw BusinessOperations.Forbidden();
             member.Role = request.Role; guild.Version++;
             operations.Notify(member.UserId, guildId, null, "member.role_changed", "成员身份变更", $"你的百业身份已变更为 {(request.Role == "admin" ? "管理员" : "成员")}", new { Kind = "guild", GuildId = guildId });
-            return new { Member = await views.MemberAsync(member, token), GuildVersion = guild.Version };
+            return new RoleChangedResponse(await views.MemberAsync(member, token), guild.Version);
         }, token));
     [HttpDelete("{guildId:guid}/members/{membershipId:guid}")]
-    [ProducesResponseType<ApiResponse<MemberDeletedResponse>>(200)]
-    public async Task<object> Remove(Guid guildId, Guid membershipId, CancellationToken token) => ApiResponse.Success(
+    public async Task<ApiResponse<MemberDeletedResponse>> Remove(Guid guildId, Guid membershipId, CancellationToken token) => ApiResponse.Success(
         await operations.WriteAsync($"member.remove:{membershipId}", new { membershipId }, guildId, null, false, async () =>
         {
             var actor = await operations.MemberAsync(guildId, true, false, token);
@@ -145,11 +138,10 @@ public sealed class GuildsController(YanyunDbContext database, BusinessOperation
             if (member.Role == "owner" || member.UserId == operations.UserId || actor.Role == "admin" && member.Role != "member") throw BusinessOperations.Forbidden();
             await cleanup.MemberAsync(member, token);
             guild = await operations.GuildAsync(guildId, token); guild.Version++;
-            return new { Deleted = true, GuildVersion = guild.Version };
+            return new MemberDeletedResponse(true, guild.Version);
         }, token));
     [HttpPost("{guildId:guid}/leave")]
-    [ProducesResponseType<ApiResponse<LeaveResponse>>(200)]
-    public async Task<object> Leave(Guid guildId, LeaveWrite request, CancellationToken token) => ApiResponse.Success(
+    public async Task<ApiResponse<LeaveResponse>> Leave(Guid guildId, LeaveWrite request, CancellationToken token) => ApiResponse.Success(
         await operations.WriteAsync($"guild.leave:{guildId}", request, guildId, null, false, async () =>
         {
             var member = await operations.MemberAsync(guildId, false, false, token);
@@ -159,11 +151,10 @@ public sealed class GuildsController(YanyunDbContext database, BusinessOperation
             var dissolved = member.Role == "owner";
             if (dissolved) await cleanup.GuildAsync(guildId, token);
             else { await cleanup.MemberAsync(member, token); guild = await operations.GuildAsync(guildId, token); guild.Version++; }
-            return new { Deleted = true, GuildDissolved = dissolved };
+            return new LeaveResponse(true, dissolved);
         }, token));
     [HttpPost("{guildId:guid}/owner-transfer")]
-    [ProducesResponseType<ApiResponse<OwnerTransferResponse>>(200)]
-    public async Task<object> Transfer(Guid guildId, OwnerTransferWrite request, CancellationToken token) => ApiResponse.Success(
+    public async Task<ApiResponse<OwnerTransferResponse>> Transfer(Guid guildId, OwnerTransferWrite request, CancellationToken token) => ApiResponse.Success(
         await operations.WriteAsync($"guild.transfer:{guildId}", request, guildId, null, false, async () =>
         {
             var actor = await operations.MemberAsync(guildId, false, true, token);
@@ -174,20 +165,18 @@ public sealed class GuildsController(YanyunDbContext database, BusinessOperation
             target.Role = "owner"; guild.OwnerUserId = target.UserId; guild.Version++;
             operations.Notify(target.UserId, guildId, null, "guild.owner_transferred", "社长已转让", "你已成为百业社长", new { Kind = "guild", GuildId = guildId });
             operations.Notify(actor.UserId, guildId, null, "guild.owner_transferred", "社长已转让", "你的社长转让已完成", new { Kind = "guild", GuildId = guildId }, target.UserId);
-            return new { OwnerUserId = target.UserId, PreviousOwnerRole = actor.Role, guild.Version,
-                Members = new[] { new { MembershipId = actor.Id, actor.Role }, new { MembershipId = target.Id, target.Role } } };
+            return new OwnerTransferResponse(target.UserId, actor.Role, guild.Version,
+                [new(actor.Id, actor.Role), new(target.Id, target.Role)]);
         }, token));
     [HttpGet("{guildId:guid}/reminder-settings")]
-    [ProducesResponseType<ApiResponse<ReminderResponse>>(200)]
-    public async Task<object> Reminders(Guid guildId, CancellationToken token)
-    { await operations.MemberAsync(guildId, false, false, token); var guild = await operations.GuildAsync(guildId, token); return ApiResponse.Success(new { guild.ReminderEnabled, guild.RemindMinutes, guild.Version }); }
+    public async Task<ApiResponse<ReminderResponse>> Reminders(Guid guildId, CancellationToken token)
+    { await operations.MemberAsync(guildId, false, false, token); var guild = await operations.GuildAsync(guildId, token); return ApiResponse.Success(new ReminderResponse(guild.ReminderEnabled, guild.RemindMinutes, guild.Version)); }
     [HttpPut("{guildId:guid}/reminder-settings")]
-    [ProducesResponseType<ApiResponse<ReminderResponse>>(200)]
-    public async Task<object> SetReminders(Guid guildId, ReminderWrite request, CancellationToken token) => ApiResponse.Success(
+    public async Task<ApiResponse<ReminderResponse>> SetReminders(Guid guildId, ReminderWrite request, CancellationToken token) => ApiResponse.Success(
         await operations.WriteAsync($"guild.reminders:{guildId}", request, guildId, null, false, async () =>
         {
             await operations.MemberAsync(guildId, true, false, token); var guild = await operations.GuildAsync(guildId, token);
             BusinessOperations.Version(guild.Version, request.ExpectedVersion); guild.ReminderEnabled = request.ReminderEnabled;
-            guild.RemindMinutes = request.RemindMinutes; guild.Version++; return new { guild.ReminderEnabled, guild.RemindMinutes, guild.Version };
+            guild.RemindMinutes = request.RemindMinutes; guild.Version++; return new ReminderResponse(guild.ReminderEnabled, guild.RemindMinutes, guild.Version);
         }, token));
 }

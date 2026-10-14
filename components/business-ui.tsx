@@ -10,7 +10,7 @@ import {
   useState,
 } from "react";
 import { api, ApiError } from "@/lib/api";
-import type { Me, Option } from "@/lib/contracts";
+import type { Me, ProfileOptions } from "@/lib/contracts";
 import { createPortal } from "react-dom";
 
 function ActionFeedback({ error, message, dismiss }: { error: string; message: string; dismiss: () => void }) {
@@ -263,7 +263,7 @@ export const APPLICATION_STATUSES = ["pending", "approved", "rejected", "withdra
 export const canManage = (me: Me, guildId: string) =>
   me.membership?.guild_id === guildId && me.membership.role !== "member";
 export function useProfileOptions() {
-  const query = useQuery<{ servers: Option[]; styles: Option[] }>(
+  const query = useQuery<ProfileOptions>(
     "/dictionaries/profile-options",
   );
   const styleLabel = (code: string) =>

@@ -10,8 +10,7 @@ namespace Yanyun.Api.Controllers;
 public sealed class DiscoveryController(YanyunDbContext database, BusinessOperations operations, BusinessViews views) : ControllerBase
 {
     [HttpGet("players")]
-    [ProducesResponseType<ApiResponse<PagedResponse<PlayerSummaryResponse>>>(200)]
-    public async Task<object> Players(CancellationToken token, int page = 1, [FromQuery(Name = "page_size")] int pageSize = 20,
+    public async Task<ApiResponse<PagedResponse<PlayerSummaryResponse>>> Players(CancellationToken token, int page = 1, [FromQuery(Name = "page_size")] int pageSize = 20,
         string? server = null, string? style = null, int? weekday = null,
         [FromQuery(Name = "start_minute")] int? startMinute = null, [FromQuery(Name = "end_minute")] int? endMinute = null)
     {
@@ -38,7 +37,7 @@ public sealed class DiscoveryController(YanyunDbContext database, BusinessOperat
             !database.Memberships.Any(member => member.UserId == user.Id) && matchingUsers.Contains(user.Id));
         var total = await users.CountAsync(token);
         var rows = await users.OrderBy(user => user.Nickname).ThenBy(user => user.Id).Skip((page - 1) * pageSize).Take(pageSize).ToArrayAsync(token);
-        var items = new List<object>();
+        var items = new List<PlayerSummaryResponse>();
         var ids = rows.Select(user => user.Id).ToArray();
         var matchesByUser = (await profiles.Where(profile => ids.Contains(profile.UserId)).ToArrayAsync(token)).ToLookup(profile => profile.UserId);
         await views.LoadUsersAsync(ids, token);
@@ -46,23 +45,22 @@ public sealed class DiscoveryController(YanyunDbContext database, BusinessOperat
         {
             var matches = matchesByUser[user.Id];
             var profile = await views.DefaultProfileAsync(user.Id, token);
-            items.Add(new { UserId = user.Id, user.Nickname, DefaultProfile = profile is null ? null : BusinessViews.Summary(profile), MatchingProfiles = matches.Select(BusinessViews.Summary) });
+            items.Add(new(user.Id, user.Nickname, profile is null ? null : BusinessViews.Summary(profile), [.. matches.Select(BusinessViews.Summary)]));
         }
-        return ApiResponse.Success(new { Items = items, Page = page, PageSize = pageSize, Total = total });
+        return ApiResponse.Success(new PagedResponse<PlayerSummaryResponse>([.. items], page, pageSize, total));
     }
     [HttpGet("players/{userId:guid}")]
-    [ProducesResponseType<ApiResponse<PlayerResponse>>(200)]
-    public async Task<object> Player(Guid userId, CancellationToken token)
+    public async Task<ApiResponse<PlayerResponse>> Player(Guid userId, CancellationToken token)
     {
         var user = await database.Users.SingleOrDefaultAsync(user => user.Id == userId && user.Status == "active" && user.EmailVerifiedAt != null &&
             !database.Memberships.Any(member => member.UserId == user.Id), token) ?? throw BusinessOperations.Missing();
         var profiles = await database.Profiles.Where(profile => profile.UserId == userId && profile.DeletedAt == null).ToArrayAsync(token);
-        return ApiResponse.Success(new { UserId = user.Id, user.Nickname, Profiles = profiles.Select(profile => new
-        { ProfileId = profile.Id, profile.UserId, profile.Name, profile.Server, profile.Power, profile.Styles, OnlineSlots = BusinessJson.Parse(profile.OnlineSlotsJson), profile.Bio }) });
+        return ApiResponse.Success(new PlayerResponse(user.Id, user.Nickname, [.. profiles.Select(profile => new PublicProfileResponse(
+            profile.Id, profile.UserId, profile.Name, profile.Server, profile.Power, profile.Styles,
+            System.Text.Json.JsonSerializer.Deserialize<OnlineSlot[]>(profile.OnlineSlotsJson, BusinessJson.Options)!, profile.Bio))]));
     }
     [HttpGet("guilds/{guildId:guid}/participation")]
-    [ProducesResponseType<ApiResponse<ParticipationResponse>>(200)]
-    public async Task<object> Participation(Guid guildId, CancellationToken token, int page = 1,
+    public async Task<ApiResponse<ParticipationResponse>> Participation(Guid guildId, CancellationToken token, int page = 1,
         [FromQuery(Name = "page_size")] int pageSize = 20, [FromQuery(Name = "unassigned_only")] bool unassignedOnly = false)
     {
         operations.RejectUnknownQuery("page", "page_size", "unassigned_only"); await operations.MemberAsync(guildId, true, false, token);
@@ -83,13 +81,12 @@ public sealed class DiscoveryController(YanyunDbContext database, BusinessOperat
         var total = await filtered.CountAsync(token);
         var rows = await filtered.OrderByDescending(member => member.CumulativeCount).ThenBy(member => member.UserId)
             .Skip((page - 1) * pageSize).Take(pageSize).ToArrayAsync(token);
-        var items = new List<object>();
         var ranks = await counts.GroupBy(member => member.CumulativeCount)
             .Select(group => new { Count = group.Key, Members = group.Count() }).ToArrayAsync(token);
-        foreach (var row in rows) items.Add(new { row.MembershipId, row.UserId, row.Nickname, row.WeeklyCount, row.CumulativeCount,
-            Rank = 1 + ranks.Where(rank => rank.Count > row.CumulativeCount).Sum(rank => rank.Members) });
-        return ApiResponse.Success(new { Basis = "confirmed_assignments", WeekKey = range.Key, WeekStart = range.Start, WeekEnd = range.End,
-            Timezone = "Asia/Shanghai", ServerTime = DateTimeOffset.UtcNow, CumulativeCutoff = range.End, IncludesFutureInCurrentWeek = true,
-            Items = items, Page = page, PageSize = pageSize, Total = total, UnassignedUserIds = rows.Where(row => row.WeeklyCount == 0).Select(row => row.UserId) });
+        var items = rows.Select(row => new ParticipationItemResponse(row.MembershipId, row.UserId, row.Nickname, row.WeeklyCount,
+            row.CumulativeCount, 1 + ranks.Where(rank => rank.Count > row.CumulativeCount).Sum(rank => rank.Members))).ToArray();
+        return ApiResponse.Success(new ParticipationResponse("confirmed_assignments", range.Key, range.Start, range.End,
+            "Asia/Shanghai", DateTimeOffset.UtcNow, range.End, true, items, page, pageSize, total,
+            [.. rows.Where(row => row.WeeklyCount == 0).Select(row => row.UserId)]));
     }
 }

@@ -13,8 +13,7 @@ public sealed class NotificationsController(YanyunDbContext database, BusinessOp
 {
     private sealed record Cursor(DateTimeOffset CreatedAt, Guid Id, bool UnreadOnly, Guid UserId);
     [HttpGet]
-    [ProducesResponseType<ApiResponse<CursorResponse<NotificationResponse>>>(200)]
-    public async Task<object> List(CancellationToken token, string? cursor = null, int limit = 20,
+    public async Task<ApiResponse<CursorResponse<NotificationResponse>>> List(CancellationToken token, string? cursor = null, int limit = 20,
         [FromQuery(Name = "unread_only")] bool unreadOnly = false)
     {
         operations.RejectUnknownQuery("cursor", "limit", "unread_only");
@@ -32,17 +31,15 @@ public sealed class NotificationsController(YanyunDbContext database, BusinessOp
         var items = rows.Take(limit).ToArray();
         var next = rows.Length > limit ? Convert.ToBase64String(Encoding.UTF8.GetBytes(BusinessJson.Serialize(
             new Cursor(items[^1].CreatedAt, items[^1].Id, unreadOnly, operations.UserId)))) : null;
-        return ApiResponse.Success(new { Items = items.Select(notification => new { notification.Id, notification.Type, notification.Title,
-            notification.Body, notification.CreatedAt, notification.ReadAt,
-            Target = JsonSerializer.Deserialize<NotificationTargetResponse>(notification.TargetJson, BusinessJson.Options) }), NextCursor = next });
+        return ApiResponse.Success(new CursorResponse<NotificationResponse>([.. items.Select(notification => new NotificationResponse(
+            notification.Id, notification.Type, notification.Title, notification.Body, notification.CreatedAt, notification.ReadAt,
+            JsonSerializer.Deserialize<NotificationTargetResponse>(notification.TargetJson, BusinessJson.Options)!))], next));
     }
     [HttpGet("unread-count")]
-    [ProducesResponseType<ApiResponse<UnreadResponse>>(200)]
-    public async Task<object> Count(CancellationToken token) => ApiResponse.Success(new
-    { UnreadCount = await database.Notifications.CountAsync(notification => notification.UserId == operations.UserId && notification.ReadAt == null, token) });
+    public async Task<ApiResponse<UnreadResponse>> Count(CancellationToken token) => ApiResponse.Success(new UnreadResponse(
+        await database.Notifications.CountAsync(notification => notification.UserId == operations.UserId && notification.ReadAt == null, token)));
     [HttpPost("read")]
-    [ProducesResponseType<ApiResponse<ReadResponse>>(200)]
-    public async Task<object> Read(ReadNotificationsWrite request, CancellationToken token)
+    public async Task<ApiResponse<ReadResponse>> Read(ReadNotificationsWrite request, CancellationToken token)
     {
         if (request.All == true ? request.NotificationIds is not null : request.All is not null || request.NotificationIds is null ||
             request.NotificationIds.Length is < 1 or > 100 || request.NotificationIds.Distinct().Count() != request.NotificationIds.Length)
@@ -59,7 +56,7 @@ public sealed class NotificationsController(YanyunDbContext database, BusinessOp
             var changed = await query.Where(notification => notification.ReadAt == null && notification.CreatedAt <= now)
                 .ExecuteUpdateAsync(update => update.SetProperty(notification => notification.ReadAt, now), token);
             publisher.Queue(operations.UserId, "read");
-            return new { UpdatedCount = changed, UnreadCount = await database.Notifications.CountAsync(notification => notification.UserId == operations.UserId && notification.ReadAt == null, token) };
+            return new ReadResponse(changed, await database.Notifications.CountAsync(notification => notification.UserId == operations.UserId && notification.ReadAt == null, token));
         }, token));
     }
 }

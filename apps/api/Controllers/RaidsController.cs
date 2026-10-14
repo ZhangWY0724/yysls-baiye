@@ -12,24 +12,22 @@ public sealed class RaidsController(YanyunDbContext database, BusinessOperations
     CleanupService cleanup) : ControllerBase
 {
     [HttpGet("dungeon-templates")]
-    [ProducesResponseType<ApiResponse<PagedResponse<TemplateResponse>>>(200)]
-    public Task<object> SystemTemplates(CancellationToken token, int page = 1, [FromQuery(Name = "page_size")] int pageSize = 20, string? q = null)
+    public Task<ApiResponse<PagedResponse<TemplateResponse>>> SystemTemplates(CancellationToken token, int page = 1, [FromQuery(Name = "page_size")] int pageSize = 20, string? q = null)
         => Templates(null, page, pageSize, q, token);
     [HttpGet("guilds/{guildId:guid}/dungeon-templates")]
-    [ProducesResponseType<ApiResponse<PagedResponse<TemplateResponse>>>(200)]
-    public async Task<object> GuildTemplates(Guid guildId, CancellationToken token, int page = 1, [FromQuery(Name = "page_size")] int pageSize = 20, string? q = null)
+    public async Task<ApiResponse<PagedResponse<TemplateResponse>>> GuildTemplates(Guid guildId, CancellationToken token, int page = 1, [FromQuery(Name = "page_size")] int pageSize = 20, string? q = null)
     { await operations.MemberAsync(guildId, false, false, token); return await Templates(guildId, page, pageSize, q, token); }
-    private async Task<object> Templates(Guid? guildId, int page, int size, string? q, CancellationToken token)
+    private async Task<ApiResponse<PagedResponse<TemplateResponse>>> Templates(Guid? guildId, int page, int size, string? q, CancellationToken token)
     {
         operations.RejectUnknownQuery("page", "page_size", "q"); BusinessOperations.Pagination(page, size); q = BusinessOperations.Text(q, "搜索词", 100);
         var query = database.Templates.Where(template => template.ArchivedAt == null && (template.GuildId == null || template.GuildId == guildId) && (q == "" || template.Name.Contains(q)));
         var total = await query.CountAsync(token);
         var rows = await query.OrderBy(template => template.Name).ThenBy(template => template.Id).Skip((page - 1) * size).Take(size).ToArrayAsync(token);
-        return ApiResponse.Success(new { Items = rows.Select(BusinessViews.Template), Page = page, PageSize = size, Total = total });
+        return ApiResponse.Success(new PagedResponse<TemplateResponse>([.. rows.Select(BusinessViews.Template)], page, size, total));
     }
     [HttpPost("guilds/{guildId:guid}/dungeon-templates")]
     [ProducesResponseType<ApiResponse<TemplateResponse>>(201)]
-    public async Task<IActionResult> CreateTemplate(Guid guildId, TemplateWrite request, CancellationToken token)
+    public async Task<ActionResult<ApiResponse<TemplateResponse>>> CreateTemplate(Guid guildId, TemplateWrite request, CancellationToken token)
     {
         var result = await operations.WriteAsync($"template.create:{guildId}", request, guildId, null, false, async () =>
         {
@@ -45,8 +43,7 @@ public sealed class RaidsController(YanyunDbContext database, BusinessOperations
         return StatusCode(201, ApiResponse.Success(result));
     }
     [HttpPatch("guilds/{guildId:guid}/dungeon-templates/{templateId:guid}")]
-    [ProducesResponseType<ApiResponse<TemplateResponse>>(200)]
-    public async Task<object> UpdateTemplate(Guid guildId, Guid templateId, JsonElement body, CancellationToken token)
+    public async Task<ApiResponse<TemplateResponse>> UpdateTemplate(Guid guildId, Guid templateId, JsonElement body, CancellationToken token)
     {
         ProfilesController.CheckFields(body, "name", "need_tank", "need_healer", "need_dps", "default_duration_min", "expected_version");
         if (body.EnumerateObject().Count() < 2 || body.EnumerateObject().Any(property => property.Value.ValueKind == JsonValueKind.Null)) throw BusinessOperations.Invalid("模板字段不能为空");
@@ -65,29 +62,26 @@ public sealed class RaidsController(YanyunDbContext database, BusinessOperations
         }, token));
     }
     [HttpDelete("guilds/{guildId:guid}/dungeon-templates/{templateId:guid}")]
-    [ProducesResponseType<ApiResponse<ArchivedResponse>>(200)]
-    public async Task<object> DeleteTemplate(Guid guildId, Guid templateId, CancellationToken token) => ApiResponse.Success(
+    public async Task<ApiResponse<ArchivedResponse>> DeleteTemplate(Guid guildId, Guid templateId, CancellationToken token) => ApiResponse.Success(
         await operations.WriteAsync($"template.archive:{templateId}", new { templateId }, guildId, null, false, async () =>
         {
             await operations.MemberAsync(guildId, true, false, token);
             var template = await database.Templates.SingleOrDefaultAsync(template => template.Id == templateId && template.GuildId == guildId, token) ?? throw BusinessOperations.Missing();
             BusinessOperations.Version(template.Version, operations.HeaderVersion()); template.ArchivedAt = DateTimeOffset.UtcNow; template.Version++;
-            return new { Archived = true, template.Version };
+            return new ArchivedResponse(true, template.Version);
         }, token));
     [HttpGet("guilds/{guildId:guid}/events")]
-    [ProducesResponseType<ApiResponse<EventsWeekResponse>>(200)]
-    public async Task<object> Events(Guid guildId, CancellationToken token, string? week = null)
+    public async Task<ApiResponse<EventsWeekResponse>> Events(Guid guildId, CancellationToken token, string? week = null)
     {
         operations.RejectUnknownQuery("week"); await operations.MemberAsync(guildId, false, false, token);
         var range = BusinessOperations.Week(week);
         var rows = await database.Events.Where(raid => raid.GuildId == guildId && raid.StartsAt >= range.Start && raid.StartsAt < range.End)
             .OrderBy(raid => raid.StartsAt).ThenBy(raid => raid.Id).ToListAsync(token);
         var events = await views.EventsAsync(rows, operations.UserId, token);
-        return ApiResponse.Success(new { WeekKey = range.Key, WeekStart = range.Start, WeekEnd = range.End, Timezone = "Asia/Shanghai", ServerTime = DateTimeOffset.UtcNow, Events = events });
+        return ApiResponse.Success(new EventsWeekResponse(range.Key, range.Start, range.End, "Asia/Shanghai", DateTimeOffset.UtcNow, events));
     }
     [HttpGet("guilds/{guildId:guid}/events/{eventId:guid}")]
-    [ProducesResponseType<ApiResponse<EventResponse>>(200)]
-    public async Task<object> Event(Guid guildId, Guid eventId, CancellationToken token)
+    public async Task<ApiResponse<EventResponse>> Event(Guid guildId, Guid eventId, CancellationToken token)
     {
         await operations.MemberAsync(guildId, false, false, token);
         var raid = await database.Events.SingleOrDefaultAsync(raid => raid.Id == eventId && raid.GuildId == guildId, token) ?? throw BusinessOperations.Missing();
@@ -95,7 +89,7 @@ public sealed class RaidsController(YanyunDbContext database, BusinessOperations
     }
     [HttpPost("guilds/{guildId:guid}/events")]
     [ProducesResponseType<ApiResponse<EventResponse>>(201)]
-    public async Task<IActionResult> CreateEvent(Guid guildId, EventWrite request, CancellationToken token)
+    public async Task<ActionResult<ApiResponse<EventResponse>>> CreateEvent(Guid guildId, EventWrite request, CancellationToken token)
     {
         var eventId = Guid.CreateVersion7();
         var result = await operations.WriteAsync($"event.create:{guildId}", request, guildId, eventId, true, async () =>
@@ -115,8 +109,7 @@ public sealed class RaidsController(YanyunDbContext database, BusinessOperations
         return StatusCode(201, ApiResponse.Success(result));
     }
     [HttpPatch("guilds/{guildId:guid}/events/{eventId:guid}")]
-    [ProducesResponseType<ApiResponse<EventResponse>>(200)]
-    public async Task<object> UpdateEvent(Guid guildId, Guid eventId, JsonElement body, CancellationToken token)
+    public async Task<ApiResponse<EventResponse>> UpdateEvent(Guid guildId, Guid eventId, JsonElement body, CancellationToken token)
     {
         ProfilesController.CheckFields(body, "title", "starts_at", "duration_min", "signup_mode", "status", "need_tank", "need_healer", "need_dps", "note", "reminder_enabled", "remind_minutes", "expected_version");
         if (body.EnumerateObject().Count() < 2 || body.EnumerateObject().Any(property => property.Value.ValueKind == JsonValueKind.Null && property.Name != "note"))
@@ -146,8 +139,7 @@ public sealed class RaidsController(YanyunDbContext database, BusinessOperations
         }, token));
     }
     [HttpDelete("guilds/{guildId:guid}/events/{eventId:guid}")]
-    [ProducesResponseType<ApiResponse<CancelledResponse>>(200)]
-    public async Task<object> CancelEvent(Guid guildId, Guid eventId, CancellationToken token) => ApiResponse.Success(
+    public async Task<ApiResponse<CancelledResponse>> CancelEvent(Guid guildId, Guid eventId, CancellationToken token) => ApiResponse.Success(
         await operations.WriteAsync($"event.cancel:{eventId}", new { eventId }, guildId, eventId, false, async () =>
         {
             await operations.MemberAsync(guildId, true, false, token);
@@ -157,11 +149,10 @@ public sealed class RaidsController(YanyunDbContext database, BusinessOperations
             var users = await database.Assignments.Where(assignment => assignment.EventId == eventId).Select(assignment => assignment.UserId).ToArrayAsync(token);
             foreach (var user in users) operations.Notify(user, guildId, eventId, "raid.cancelled", "场次已取消", $"「{raid.Title}」已取消",
                 new { Kind = "raid_event", GuildId = guildId, EventId = eventId });
-            return new { Cancelled = true, raid.Version };
+            return new CancelledResponse(true, raid.Version);
         }, token));
     [HttpPost("events/{eventId:guid}/assignments")]
-    [ProducesResponseType<ApiResponse<AssignmentCreatedResponse>>(200)]
-    public async Task<object> Signup(Guid eventId, AssignmentWrite request, CancellationToken token)
+    public async Task<ApiResponse<AssignmentCreatedResponse>> Signup(Guid eventId, AssignmentWrite request, CancellationToken token)
     {
         var snapshot = await database.Events.AsNoTracking().SingleOrDefaultAsync(raid => raid.Id == eventId, token) ?? throw BusinessOperations.Missing();
         return ApiResponse.Success(await operations.WriteAsync($"assignment.create:{eventId}", request, snapshot.GuildId, eventId, true, async () =>
@@ -192,13 +183,12 @@ public sealed class RaidsController(YanyunDbContext database, BusinessOperations
                 $"「{raid.Title}」{(full ? "候补" : "报名")}成功", new { Kind = "raid_event", raid.GuildId, EventId = eventId }, operations.UserId);
             operations.Audit("assignment.created", assignment.Id, raid.GuildId, eventId, profile.UserId);
             await database.SaveChangesAsync(token);
-            return new { AssignmentId = assignment.Id, assignment.Status, WaitlistPosition = full ? (int?)await database.Assignments.CountAsync(
-                row => row.EventId == eventId && row.SlotRole == request.SlotRole && row.Status == "waitlist", token) : null, EventVersion = raid.Version };
+            return new AssignmentCreatedResponse(assignment.Id, assignment.Status, full ? await database.Assignments.CountAsync(
+                row => row.EventId == eventId && row.SlotRole == request.SlotRole && row.Status == "waitlist", token) : null, raid.Version);
         }, token));
     }
     [HttpDelete("events/{eventId:guid}/assignments/{assignmentId:guid}")]
-    [ProducesResponseType<ApiResponse<AssignmentDeletedResponse>>(200)]
-    public async Task<object> CancelAssignment(Guid eventId, Guid assignmentId, CancellationToken token)
+    public async Task<ApiResponse<AssignmentDeletedResponse>> CancelAssignment(Guid eventId, Guid assignmentId, CancellationToken token)
     {
         var snapshot = await database.Events.AsNoTracking().SingleOrDefaultAsync(raid => raid.Id == eventId, token) ?? throw BusinessOperations.Missing();
         return ApiResponse.Success(await operations.WriteAsync($"assignment.cancel:{assignmentId}", new { assignmentId }, snapshot.GuildId, eventId, false, async () =>
@@ -206,35 +196,34 @@ public sealed class RaidsController(YanyunDbContext database, BusinessOperations
             var raid = await database.Events.SingleOrDefaultAsync(raid => raid.Id == eventId, token) ?? throw BusinessOperations.Missing(); Open(raid);
             var member = await operations.MemberAsync(raid.GuildId, false, false, token);
             var assignment = await database.Assignments.SingleOrDefaultAsync(assignment => assignment.Id == assignmentId && assignment.EventId == eventId, token);
-            if (assignment is null) return new { Deleted = true, EventVersion = raid.Version };
+            if (assignment is null) return new AssignmentDeletedResponse(true, raid.Version);
             if (assignment.UserId != operations.UserId && member.Role == "member") throw BusinessOperations.Forbidden();
             database.Assignments.Remove(assignment); raid.Version++;
             operations.Notify(assignment.UserId, raid.GuildId, eventId, "assignment.removed", "排班已取消", $"「{raid.Title}」排班已取消",
                 new { Kind = "raid_event", raid.GuildId, EventId = eventId }, operations.UserId);
             await database.SaveChangesAsync(token); await cleanup.PromoteAsync(eventId, token);
-            return new { Deleted = true, EventVersion = raid.Version };
+            return new AssignmentDeletedResponse(true, raid.Version);
         }, token));
     }
     [HttpGet("me/week")]
-    [ProducesResponseType<ApiResponse<MyWeekResponse>>(200)]
-    public async Task<object> MyWeek(CancellationToken token)
+    public async Task<ApiResponse<MyWeekResponse>> MyWeek(CancellationToken token)
     {
         operations.RejectUnknownQuery(); var range = BusinessOperations.Week();
         var assignments = await (from assignment in database.Assignments join raid in database.Events on assignment.EventId equals raid.Id
             join profile in database.Profiles on assignment.ProfileId equals profile.Id
             where assignment.UserId == operations.UserId && raid.StartsAt >= range.Start && raid.StartsAt < range.End orderby raid.StartsAt, raid.Id select new { Assignment = assignment, Raid = raid, Profile = profile }).ToListAsync(token);
-        var items = new List<object>();
-        foreach (var row in assignments)
+        var now = DateTimeOffset.UtcNow;
+        var items = assignments.Select(row =>
         {
-            var assignment = row.Assignment;
-            var raid = row.Raid;
-            var profile = row.Profile;
-            items.Add(new { Event = new { raid.Id, raid.GuildId, raid.Title, raid.StartsAt, EndsAt = raid.StartsAt.AddMinutes(raid.DurationMin),
-                Status = raid.Status == "published" && raid.StartsAt.AddMinutes(raid.DurationMin) <= DateTimeOffset.UtcNow ? "finished" : raid.Status,
-                raid.Version, CanCancel = raid.StartsAt > DateTimeOffset.UtcNow && raid.Status == "published" },
-                Assignment = new { assignment.Id, assignment.Status, assignment.SlotRole, Profile = BusinessViews.Summary(profile) } });
-        }
-        return ApiResponse.Success(new { WeekKey = range.Key, WeekStart = range.Start, WeekEnd = range.End, Timezone = "Asia/Shanghai", ServerTime = DateTimeOffset.UtcNow, Items = items });
+            var (assignment, raid) = (row.Assignment, row.Raid);
+            var endsAt = raid.StartsAt.AddMinutes(raid.DurationMin);
+            return new MyWeekItemResponse(
+                new MyEventResponse(raid.Id, raid.GuildId, raid.Title, raid.StartsAt, endsAt,
+                    raid.Status == "published" && endsAt <= now ? "finished" : raid.Status, raid.Version,
+                    raid.StartsAt > now && raid.Status == "published"),
+                new MyAssignmentResponse(assignment.Id, assignment.Status, assignment.SlotRole, BusinessViews.Summary(row.Profile)));
+        }).ToArray();
+        return ApiResponse.Success(new MyWeekResponse(range.Key, range.Start, range.End, "Asia/Shanghai", now, items));
     }
     private static void Open(RaidEvent raid)
     {

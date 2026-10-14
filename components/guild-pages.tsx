@@ -7,12 +7,18 @@ import { api, idempotency } from "@/lib/api";
 import {
   Application,
   Guild,
+  GuildCreated,
+  GuildDetail,
   Invitation,
+  InvitationCreated,
   InvitationPreview,
   Me,
   Member,
   Page,
-  ProfileSummary,
+  Participation,
+  Player,
+  PlayerSummary,
+  Reminder,
   Template,
 } from "@/lib/contracts";
 import {
@@ -163,7 +169,7 @@ export function GuildList({
               busy={action.busy}
               onSubmit={(form) =>
                 action.run(async () => {
-                  const guild = await api<Guild>(
+                  const guild = await api<GuildCreated>(
                     "/guilds",
                     "POST",
                     {
@@ -219,7 +225,7 @@ export function GuildHome({
   reload: () => Promise<void>;
 }) {
   const router = useRouter();
-  const query = useQuery<Guild>(`/guilds/${id}`);
+  const query = useQuery<GuildDetail>(`/guilds/${id}`);
   const action = useAction(async () => {
     query.reload();
     await reload();
@@ -388,11 +394,7 @@ export function GuildSettings({
       : null,
   );
   const guild = useQuery<Guild>(`/guilds/${id}`);
-  const reminders = useQuery<{
-    reminder_enabled: boolean;
-    remind_minutes: number;
-    version: number;
-  }>(tab === "reminders" ? `/guilds/${id}/reminder-settings` : null);
+  const reminders = useQuery<Reminder>(tab === "reminders" ? `/guilds/${id}/reminder-settings` : null);
   const action = useAction(async () => {
     guild.reload();
     reminders.reload();
@@ -556,14 +558,6 @@ export function GuildSettings({
     </div>
   );
 }
-type Participation = Page<{
-  membership_id: string;
-  user_id: string;
-  nickname: string;
-  weekly_count: number;
-  cumulative_count: number;
-  rank: number;
-}> & { week_key: string };
 export function MembersPage({
   id,
   me,
@@ -839,7 +833,7 @@ export function MembersPage({
             className="button button-primary"
             onClick={() =>
               action.run(async () => {
-                const result = await api<Invitation>(
+                const result = await api<InvitationCreated>(
                   `/guilds/${id}/invitations`,
                   "POST",
                   { type: "code", max_uses: 20 },
@@ -1034,20 +1028,6 @@ export function InvitationPage({
     </QueryState>
   );
 }
-type Player = {
-  user_id: string;
-  nickname: string;
-  default_profile: ProfileSummary | null;
-  matching_profiles: ProfileSummary[];
-  profiles?: (ProfileSummary & {
-    bio: string;
-    online_slots: {
-      weekday: number;
-      start_minute: number;
-      end_minute: number;
-    }[];
-  })[];
-};
 function InviteButton({ me, userId, compact }: { me: Me; userId: string; compact?: boolean }) {
   const action = useAction(() => {});
   if (!me.membership || me.membership.role === "member") return null;
@@ -1077,7 +1057,7 @@ export function PlayersPage({ id, me }: { id?: string; me: Me }) {
   const [start, setStart] = useState(1140);
   const [end, setEnd] = useState(1440);
   const validTime = !weekday || (start >= 0 && end <= 1440 && start < end);
-  const query = useQuery<Page<Player>>(
+  const query = useQuery<Page<PlayerSummary>>(
     !id && validTime
       ? `/players?page=${page}${server ? `&server=${server}` : ""}${style ? `&style=${encodeURIComponent(style)}` : ""}${weekday ? `&weekday=${weekday}&start_minute=${start}&end_minute=${end}` : ""}`
       : null,

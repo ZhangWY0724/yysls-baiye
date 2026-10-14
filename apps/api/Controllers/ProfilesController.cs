@@ -15,12 +15,10 @@ public sealed class ProfilesController(YanyunDbContext database, BusinessOperati
     CleanupService cleanup, AuthRedisStore sessions) : ControllerBase
 {
     [HttpGet("me"), Authorize]
-    [ProducesResponseType<ApiResponse<MeResponse>>(200)]
-    public async Task<object> Me(CancellationToken token) => ApiResponse.Success(await views.MeAsync(operations.UserId, token));
+    public async Task<ApiResponse<MeResponse>> Me(CancellationToken token) => ApiResponse.Success(await views.MeAsync(operations.UserId, token));
 
     [HttpPatch("me")]
-    [ProducesResponseType<ApiResponse<MeResponse>>(200)]
-    public async Task<object> UpdateMe(JsonElement body, CancellationToken token)
+    public async Task<ApiResponse<MeResponse>> UpdateMe(JsonElement body, CancellationToken token)
     {
         CheckFields(body, "nickname", "default_profile_id");
         var request = body.Deserialize<MeWrite>(BusinessJson.Options) ?? throw BusinessOperations.Invalid("需要资料字段");
@@ -41,25 +39,23 @@ public sealed class ProfilesController(YanyunDbContext database, BusinessOperati
     }
 
     [HttpGet("profiles")]
-    [ProducesResponseType<ApiResponse<ItemsResponse<ProfileResponse>>>(200)]
-    public async Task<object> List(CancellationToken token)
+    public async Task<ApiResponse<ItemsResponse<ProfileResponse>>> List(CancellationToken token)
     {
         operations.RejectUnknownQuery();
         var profiles = await database.Profiles.Where(profile => profile.UserId == operations.UserId && profile.DeletedAt == null)
             .OrderBy(profile => profile.CreatedAt).ThenBy(profile => profile.Id).ToListAsync(token);
         var defaultProfile = await views.DefaultProfileAsync(operations.UserId, token);
-        return ApiResponse.Success(new { Items = profiles.Select(profile => BusinessViews.Profile(profile, defaultProfile?.Id)) });
+        return ApiResponse.Success(new ItemsResponse<ProfileResponse>([.. profiles.Select(profile => BusinessViews.Profile(profile, defaultProfile?.Id))]));
     }
     [HttpGet("profiles/{profileId:guid}")]
-    [ProducesResponseType<ApiResponse<ProfileResponse>>(200)]
-    public async Task<object> Get(Guid profileId, CancellationToken token)
+    public async Task<ApiResponse<ProfileResponse>> Get(Guid profileId, CancellationToken token)
     {
         var profile = await Owned(profileId, token);
         return ApiResponse.Success(BusinessViews.Profile(profile, (await views.DefaultProfileAsync(operations.UserId, token))?.Id));
     }
     [HttpPost("profiles")]
     [ProducesResponseType<ApiResponse<ProfileResponse>>(201)]
-    public async Task<IActionResult> Create(ProfileWrite request, CancellationToken token)
+    public async Task<ActionResult<ApiResponse<ProfileResponse>>> Create(ProfileWrite request, CancellationToken token)
     {
         var result = await operations.WriteAsync("profile.create", request, null, null, false, async () =>
         {
@@ -74,8 +70,7 @@ public sealed class ProfilesController(YanyunDbContext database, BusinessOperati
         return StatusCode(201, ApiResponse.Success(result));
     }
     [HttpPatch("profiles/{profileId:guid}")]
-    [ProducesResponseType<ApiResponse<ProfileResponse>>(200)]
-    public async Task<object> Update(Guid profileId, JsonElement body, CancellationToken token)
+    public async Task<ApiResponse<ProfileResponse>> Update(Guid profileId, JsonElement body, CancellationToken token)
     {
         CheckFields(body, "name", "server", "power", "styles", "online_slots", "bio");
         var request = body.Deserialize<ProfileWrite>(BusinessJson.Options) ?? throw BusinessOperations.Invalid("需要角色字段");
@@ -90,8 +85,7 @@ public sealed class ProfilesController(YanyunDbContext database, BusinessOperati
         }, token));
     }
     [HttpDelete("profiles/{profileId:guid}")]
-    [ProducesResponseType<ApiResponse<DeletedResponse>>(200)]
-    public async Task<object> Delete(Guid profileId, CancellationToken token) => ApiResponse.Success(
+    public async Task<ApiResponse<DeletedResponse>> Delete(Guid profileId, CancellationToken token) => ApiResponse.Success(
         await operations.WriteAsync($"profile.delete:{profileId}", new { profileId }, null, null, false, async () =>
         {
             var profile = await Owned(profileId, token);
@@ -101,18 +95,17 @@ public sealed class ProfilesController(YanyunDbContext database, BusinessOperati
             profile.DeletedAt = DateTimeOffset.UtcNow;
             var user = await database.Users.SingleAsync(user => user.Id == operations.UserId, token);
             if (user.DefaultProfileId == profileId) user.DefaultProfileId = null;
-            return new { Deleted = true };
+            return new DeletedResponse(true);
         }, token));
 
     [HttpPost("me/account-deletion"), Authorize, ServiceFilter(typeof(CsrfGuard))]
-    [ProducesResponseType<ApiResponse<DeletedResponse>>(200)]
-    public async Task<object> DeleteAccount(AccountDeletionRequest request, CancellationToken token)
+    public async Task<ApiResponse<DeletedResponse>> DeleteAccount(AccountDeletionRequest request, CancellationToken token)
     {
         if (request.ConfirmUserId != operations.UserId || request.Confirmation != "DELETE") throw BusinessOperations.Invalid("注销确认不匹配");
         var result = await operations.WriteAsync("account.delete", request, null, null, false, async () =>
         {
             await cleanup.AccountAsync(operations.UserId, token);
-            return new { Deleted = true };
+            return new DeletedResponse(true);
         }, token);
         try { await sessions.RevokeUserSessionsAsync(operations.UserId); }
         catch (Exception exception) when (exception is StackExchange.Redis.RedisException or BusinessException) { }
