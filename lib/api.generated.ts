@@ -2486,6 +2486,181 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/invitations/{invitationId}/link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    invitationId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ApiResponseOfInvitationLinkResponse"];
+                        "application/json": components["schemas"]["ApiResponseOfInvitationLinkResponse"];
+                        "text/json": components["schemas"]["ApiResponseOfInvitationLinkResponse"];
+                    };
+                };
+                /** @description 统一业务错误，按 error.code 处理 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: unknown;
+                            error: {
+                                code: string;
+                                message: string;
+                                details: unknown;
+                                trace_id: string;
+                            };
+                        };
+                    };
+                };
+                /** @description 统一业务错误，按 error.code 处理 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: unknown;
+                            error: {
+                                code: string;
+                                message: string;
+                                details: unknown;
+                                trace_id: string;
+                            };
+                        };
+                    };
+                };
+                /** @description 统一业务错误，按 error.code 处理 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: unknown;
+                            error: {
+                                code: string;
+                                message: string;
+                                details: unknown;
+                                trace_id: string;
+                            };
+                        };
+                    };
+                };
+                /** @description 统一业务错误，按 error.code 处理 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: unknown;
+                            error: {
+                                code: string;
+                                message: string;
+                                details: unknown;
+                                trace_id: string;
+                            };
+                        };
+                    };
+                };
+                /** @description 统一业务错误，按 error.code 处理 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: unknown;
+                            error: {
+                                code: string;
+                                message: string;
+                                details: unknown;
+                                trace_id: string;
+                            };
+                        };
+                    };
+                };
+                /** @description 统一业务错误，按 error.code 处理 */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: unknown;
+                            error: {
+                                code: string;
+                                message: string;
+                                details: unknown;
+                                trace_id: string;
+                            };
+                        };
+                    };
+                };
+                /** @description 统一业务错误，按 error.code 处理 */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: unknown;
+                            error: {
+                                code: string;
+                                message: string;
+                                details: unknown;
+                                trace_id: string;
+                            };
+                        };
+                    };
+                };
+                /** @description 统一业务错误，按 error.code 处理 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: unknown;
+                            error: {
+                                code: string;
+                                message: string;
+                                details: unknown;
+                                trace_id: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/invitations/code/{code}": {
         parameters: {
             query?: never;
@@ -9962,6 +10137,185 @@ export interface paths {
         };
         trace?: never;
     };
+    "/api/v1/guilds/{guildId}/events/{eventId}/permanent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description 当前资源版本；移出成员使用百业版本 */
+                    "X-Expected-Version": string;
+                };
+                path: {
+                    guildId: string;
+                    eventId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ApiResponseOfCancelledResponse"];
+                        "application/json": components["schemas"]["ApiResponseOfCancelledResponse"];
+                        "text/json": components["schemas"]["ApiResponseOfCancelledResponse"];
+                    };
+                };
+                /** @description 统一业务错误，按 error.code 处理 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: unknown;
+                            error: {
+                                code: string;
+                                message: string;
+                                details: unknown;
+                                trace_id: string;
+                            };
+                        };
+                    };
+                };
+                /** @description 统一业务错误，按 error.code 处理 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: unknown;
+                            error: {
+                                code: string;
+                                message: string;
+                                details: unknown;
+                                trace_id: string;
+                            };
+                        };
+                    };
+                };
+                /** @description 统一业务错误，按 error.code 处理 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: unknown;
+                            error: {
+                                code: string;
+                                message: string;
+                                details: unknown;
+                                trace_id: string;
+                            };
+                        };
+                    };
+                };
+                /** @description 统一业务错误，按 error.code 处理 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: unknown;
+                            error: {
+                                code: string;
+                                message: string;
+                                details: unknown;
+                                trace_id: string;
+                            };
+                        };
+                    };
+                };
+                /** @description 统一业务错误，按 error.code 处理 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: unknown;
+                            error: {
+                                code: string;
+                                message: string;
+                                details: unknown;
+                                trace_id: string;
+                            };
+                        };
+                    };
+                };
+                /** @description 统一业务错误，按 error.code 处理 */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: unknown;
+                            error: {
+                                code: string;
+                                message: string;
+                                details: unknown;
+                                trace_id: string;
+                            };
+                        };
+                    };
+                };
+                /** @description 统一业务错误，按 error.code 处理 */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: unknown;
+                            error: {
+                                code: string;
+                                message: string;
+                                details: unknown;
+                                trace_id: string;
+                            };
+                        };
+                    };
+                };
+                /** @description 统一业务错误，按 error.code 处理 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: unknown;
+                            error: {
+                                code: string;
+                                message: string;
+                                details: unknown;
+                                trace_id: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/events/{eventId}/assignments": {
         parameters: {
             query?: never;
@@ -10578,6 +10932,10 @@ export interface components {
             data: null | components["schemas"]["InvitationCreatedResponse"];
             error: null | components["schemas"]["ApiError"];
         };
+        ApiResponseOfInvitationLinkResponse: {
+            data: null | components["schemas"]["InvitationLinkResponse"];
+            error: null | components["schemas"]["ApiError"];
+        };
         ApiResponseOfInvitationPreviewResponse: {
             data: null | components["schemas"]["InvitationPreviewResponse"];
             error: null | components["schemas"]["ApiError"];
@@ -10950,6 +11308,9 @@ export interface components {
             status: string;
             /** Format: date-time */
             created_at: string;
+        };
+        InvitationLinkResponse: {
+            invite_url: string;
         };
         InvitationPreviewResponse: {
             invitation: components["schemas"]["InvitationResponse"];

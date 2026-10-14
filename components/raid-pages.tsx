@@ -878,9 +878,9 @@ function EventDetail({ id, eventId, me, changed, onDeleted }: { id: string; even
               />
             </section>
           )}
-          {raid.can_manage && !editing && (
+          {canManage(me, id) && !editing && (
             <footer className="drawer-actions">
-              {!raid.is_locked && (
+              {raid.can_manage && (
                 <Button
                   variant="danger-ghost"
                   disabled={action.busy}
@@ -932,12 +932,12 @@ function EventDetail({ id, eventId, me, changed, onDeleted }: { id: string; even
                 </Button>
               )}
               <span className="spacer" />
-              {!raid.is_locked && (
+              {raid.can_manage && (
                 <Button icon={Pencil} onClick={() => setEditing(true)}>
                   编辑场次
                 </Button>
               )}
-              {raid.status === "draft" && (
+              {raid.can_manage && raid.status === "draft" && (
                 <Button
                   variant="primary"
                   icon={Send}

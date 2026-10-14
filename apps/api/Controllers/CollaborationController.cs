@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Yanyun.Api.Common;
@@ -8,8 +9,9 @@ using Yanyun.Api.Modules.Business;
 namespace Yanyun.Api.Controllers;
 
 [ApiController, Route("api/v1")]
-public sealed class CollaborationController(YanyunDbContext database, BusinessOperations operations, BusinessViews views) : ControllerBase
+public sealed class CollaborationController(YanyunDbContext database, BusinessOperations operations, BusinessViews views, IDataProtectionProvider protection) : ControllerBase
 {
+    private IDataProtector CodeProtector => protection.CreateProtector("Yanyun.InvitationCode.v1");
     [HttpPost("guilds/{guildId:guid}/applications")]
     [ProducesResponseType<ApiResponse<ApplicationResponse>>(201)]
     public async Task<ActionResult<ApiResponse<ApplicationResponse>>> Apply(Guid guildId, ApplicationWrite request, CancellationToken token)
@@ -101,7 +103,7 @@ public sealed class CollaborationController(YanyunDbContext database, BusinessOp
             if (expires <= DateTimeOffset.UtcNow || expires > DateTimeOffset.UtcNow.AddDays(30)) throw BusinessOperations.Invalid("有效期须在未来 30 天内");
             var code = request.Type == "code" ? AuthRedisStore.RandomToken() : null;
             var invitation = new Invitation { GuildId = guildId, CreatedBy = operations.UserId, Type = request.Type,
-                TargetUserId = request.TargetUserId, CodeHash = code is null ? null : AuthRedisStore.Hash(code), ExpiresAt = expires.ToUniversalTime(),
+                TargetUserId = request.TargetUserId, CodeHash = code is null ? null : AuthRedisStore.Hash(code), CodeCipher = code is null ? null : CodeProtector.Protect(code), ExpiresAt = expires.ToUniversalTime(),
                 MaxUses = request.Type == "direct" ? 1 : request.MaxUses ?? 20 };
             database.Invitations.Add(invitation);
             if (invitation.TargetUserId is not null) operations.Notify(invitation.TargetUserId.Value, guildId, null,
@@ -135,6 +137,18 @@ public sealed class CollaborationController(YanyunDbContext database, BusinessOp
         await views.LoadGuildsAsync(rows.Select(invitation => invitation.GuildId), token);
         var items = new List<InvitationResponse>(); foreach (var invitation in rows) items.Add(await views.InvitationAsync(invitation, token));
         return ApiResponse.Success(new PagedResponse<InvitationResponse>([.. items], page, size, total));
+    }
+    [HttpGet("invitations/{invitationId:guid}/link")]
+    public async Task<ApiResponse<InvitationLinkResponse>> InvitationLink(Guid invitationId, CancellationToken token)
+    {
+        var invitation = await database.Invitations.AsNoTracking().SingleOrDefaultAsync(row => row.Id == invitationId && row.Type == "code", token) ?? throw BusinessOperations.Missing();
+        await operations.MemberAsync(invitation.GuildId, true, false, token);
+        var error = InvitationError(invitation); if (error is not null) throw BusinessOperations.Conflict(error, "邀请已失效或已处理");
+        string code;
+        try { code = CodeProtector.Unprotect(invitation.CodeCipher ?? throw new InvalidOperationException()); }
+        catch (Exception exception) when (exception is InvalidOperationException or System.Security.Cryptography.CryptographicException)
+        { throw BusinessOperations.Conflict("LINK_UNAVAILABLE", "该链接无法找回，请重新生成"); }
+        return ApiResponse.Success(new InvitationLinkResponse($"/invitations/code/{code}"));
     }
     [HttpGet("invitations/code/{code}")]
     public async Task<ApiResponse<InvitationPreviewResponse>> PreviewCode(string code, CancellationToken token) => ApiResponse.Success(await Preview(await FindCode(code, token), token));

@@ -51,6 +51,8 @@ public sealed class Invitation : Entity
     public Guid CreatedBy { get; set; }
     public string Type { get; set; } = "direct";
     public string? CodeHash { get; set; }
+    // 邀请码经 Data Protection 加密后保存，仅供管理员在有效期内再次复制链接；旧邀请没有该值。
+    public string? CodeCipher { get; set; }
     public Guid? TargetUserId { get; set; }
     public DateTimeOffset ExpiresAt { get; set; }
     public int MaxUses { get; set; } = 1;

@@ -476,6 +476,10 @@ namespace Yanyun.Api.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<string>("CodeCipher")
+                        .HasColumnType("text")
+                        .HasColumnName("code_cipher");
+
                     b.Property<string>("CodeHash")
                         .HasColumnType("text")
                         .HasColumnName("code_hash");

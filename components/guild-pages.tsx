@@ -869,6 +869,25 @@ export function MembersPage({ id, me, reload }: { id: string; me: Me; reload: Re
                         已使用 {item.used_count}/{item.max_uses} · 有效期至 {date(item.expires_at)}
                       </small>
                     </span>
+                    {item.status === "pending" && item.type === "code" && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        icon={Copy}
+                        disabled={action.busy}
+                        onClick={() =>
+                          action.run(async () => {
+                            const result = await api<{ invite_url: string }>(`/invitations/${item.id}/link`);
+                            const url = new URL(result.invite_url, location.origin).toString();
+                            setLink(url);
+                            setCopied(false);
+                            await navigator.clipboard.writeText(url).then(() => setCopied(true), () => {});
+                          }, "邀请链接已显示在上方，可复制")
+                        }
+                      >
+                        复制链接
+                      </Button>
+                    )}
                     {item.status === "pending" && (
                       <Button
                         size="sm"

@@ -34,6 +34,7 @@ public record InvitationResponse(Guid Id, Guid GuildId, string GuildName, string
 public sealed record InvitationCreatedResponse(Guid Id, Guid GuildId, string GuildName, string Type, Guid? TargetUserId,
     DateTimeOffset ExpiresAt, int MaxUses, int UsedCount, string Status, DateTimeOffset CreatedAt,
     string? Code, string? InviteUrl) : InvitationResponse(Id, GuildId, GuildName, Type, TargetUserId, ExpiresAt, MaxUses, UsedCount, Status, CreatedAt);
+public sealed record InvitationLinkResponse(string InviteUrl);
 public sealed record InvitationPreviewResponse(InvitationResponse Invitation, GuildResponse Guild,
     string? InviterNickname, bool CanAccept, bool CanDecline, string? UnavailableReason);
 public sealed record TemplateResponse(Guid Id, Guid? GuildId, string Name, int NeedTank, int NeedHealer, int NeedDps,
