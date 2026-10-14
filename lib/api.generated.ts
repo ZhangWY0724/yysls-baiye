@@ -11251,7 +11251,7 @@ export interface components {
             version: number;
         };
         GuildDetailResponse: {
-            public_members: components["schemas"]["ProfileSummaryResponse"][];
+            public_members: components["schemas"]["PublicMemberResponse"][];
             recent_events: components["schemas"]["RecentEventResponse"][];
             my_application: null | components["schemas"]["ApplicationResponse"];
             /** Format: uuid */
@@ -11670,6 +11670,14 @@ export interface components {
             updated_count: number;
             /** Format: int32 */
             unread_count: number;
+        };
+        PublicMemberResponse: {
+            /** Format: uuid */
+            user_id: string;
+            nickname: string;
+            role: string;
+            /** Format: date-time */
+            joined_at: string;
         };
         RecentEventResponse: {
             /** Format: uuid */

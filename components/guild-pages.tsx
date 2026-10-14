@@ -296,7 +296,7 @@ export function GuildHome({ id, me, reload }: { id: string; me: Me; reload: Relo
               </p>
             </div>
           </section>
-          <div className="split">
+          <div className={member ? "split" : undefined}>
             <div className="stack">
               <Card title="百业介绍">
                 <div className="prose">
@@ -305,46 +305,48 @@ export function GuildHome({ id, me, reload }: { id: string; me: Me; reload: Relo
                   <p>{guild.recruit_requirements || "暂未填写招募要求"}</p>
                 </div>
               </Card>
-              <Card title="近期副本">
-                {guild.recent_events.length ? (
-                  <div className="list">
-                    {guild.recent_events.map((event) => (
-                      <Link className="list-row list-link" key={event.id} href={`/guilds/${id}/raids?event=${event.id}`}>
-                        <Clock3 size={16} strokeWidth={1.75} aria-hidden />
-                        <span className="list-main">
-                          <strong>{event.title}</strong>
-                          <small>{date(event.starts_at)}</small>
-                        </span>
-                        <span className="link-text">查看安排</span>
-                      </Link>
-                    ))}
-                  </div>
-                ) : (
-                  <EmptyState compact>暂时没有发布副本安排</EmptyState>
-                )}
-              </Card>
+              {member && (
+                <Card title="近期副本">
+                  {guild.recent_events.length ? (
+                    <div className="list">
+                      {guild.recent_events.map((event) => (
+                        <Link className="list-row list-link" key={event.id} href={`/guilds/${id}/raids?event=${event.id}`}>
+                          <Clock3 size={16} strokeWidth={1.75} aria-hidden />
+                          <span className="list-main">
+                            <strong>{event.title}</strong>
+                            <small>{date(event.starts_at)}</small>
+                          </span>
+                          <span className="link-text">查看安排</span>
+                        </Link>
+                      ))}
+                    </div>
+                  ) : (
+                    <EmptyState compact>暂时没有发布副本安排</EmptyState>
+                  )}
+                </Card>
+              )}
             </div>
-            <Card title="成员">
-              {guild.public_members.length ? (
-                <div className="list">
-                  {guild.public_members.map((profile) => (
-                    <div className="list-row list-row-dense" key={profile.profile_id}>
-                      <Avatar name={profile.name} id={profile.user_id} size="sm" />
+            {member && (
+              <Card title="成员">
+                {guild.public_members.length ? (
+                  <div className="list">
+                    {guild.public_members.map((item) => (
+                    <div className="list-row list-row-dense" key={item.user_id}>
+                      <Avatar name={item.nickname} id={item.user_id} size="sm" />
                       <span className="list-main">
-                        <strong>{profile.name}</strong>
-                        <small>{profile.styles.map(styleLabel).join("、") || "未设置流派"}</small>
-                      </span>
-                      <span className="power">
-                        <Bird size={14} strokeWidth={1.75} aria-hidden />
-                        {formatPower(profile.power)}
+                        <strong>{item.nickname}</strong>
+                        <small>
+                          {roleName(item.role)} · 加入于 {date(item.joined_at).split(" ")[0]}
+                        </small>
                       </span>
                     </div>
                   ))}
-                </div>
-              ) : (
-                <EmptyState compact>暂无成员角色</EmptyState>
-              )}
-            </Card>
+                  </div>
+                ) : (
+                  <EmptyState compact>暂无成员</EmptyState>
+                )}
+              </Card>
+            )}
           </div>
           {member && (
             <Card title={owner ? "退出并解散百业" : "退出百业"} className="card-danger">

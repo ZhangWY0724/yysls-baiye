@@ -156,14 +156,15 @@ function Platform() {
       .withAutomaticReconnect([0, 2000, 10000, 30000])
       .configureLogging(LogLevel.None)
       .build();
-    connection.on(
-      "notifications.changed",
-      async (event: { reason?: string }) => {
-        notifications();
-        if (event.reason === "deleted") await reload().catch(() => {});
-      },
-    );
-    connection.onreconnected(notifications);
+    // 任何推送都可能改变百业成员关系或角色（通过申请、任免、转让、移出等），同步刷新账户信息。
+    connection.on("notifications.changed", async () => {
+      notifications();
+      await reload().catch(() => {});
+    });
+    connection.onreconnected(() => {
+      notifications();
+      void reload().catch(() => {});
+    });
     let retry: ReturnType<typeof setTimeout> | undefined;
     let startedOnce = false;
     async function start() {
@@ -316,7 +317,14 @@ function Platform() {
   else if (parts[0] === "invitations")
     content = <InvitationPage path={path} reload={reload} />;
   else if (path === "/notifications")
-    content = <NotificationPage changed={notifications} />;
+    content = (
+      <NotificationPage
+        changed={() => {
+          notifications();
+          void reload().catch(() => {});
+        }}
+      />
+    );
   else
     content = (
       <EmptyState title="页面不存在" action={<ButtonLink href="/me/week">返回我的本周</ButtonLink>} />

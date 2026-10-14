@@ -57,18 +57,20 @@ public sealed class GuildsController(YanyunDbContext database, BusinessOperation
     public async Task<ApiResponse<GuildDetailResponse>> Get(Guid guildId, CancellationToken token)
     {
         var guild = await operations.GuildAsync(guildId, token);
-        var members = await database.Memberships.Where(member => member.GuildId == guildId).OrderBy(member => member.JoinedAt).Take(20).ToListAsync(token);
-        await views.LoadUsersAsync(members.Select(member => member.UserId), token);
-        var profiles = new List<ProfileSummaryResponse>();
-        foreach (var member in members) { var profile = await views.DefaultProfileAsync(member.UserId, token); if (profile is not null) profiles.Add(BusinessViews.Summary(profile)); }
+        // 成员名单与近期副本只对本百业成员可见，其他人只看到简介和招募信息。
+        var isMember = await database.Memberships.AnyAsync(member => member.GuildId == guildId && member.UserId == operations.UserId, token);
+        var members = isMember ? await database.Memberships.Where(member => member.GuildId == guildId).OrderBy(member => member.JoinedAt).Take(20).ToListAsync(token) : [];
+        var memberIds = members.Select(member => member.UserId).ToArray();
+        var nicknames = await database.Users.Where(user => memberIds.Contains(user.Id)).ToDictionaryAsync(user => user.Id, user => user.Nickname, token);
+        var publicMembers = members.Select(member => new PublicMemberResponse(member.UserId, nicknames.GetValueOrDefault(member.UserId, ""), member.Role, member.JoinedAt)).ToArray();
         var summary = await views.GuildAsync(guild, token);
-        var recentEvents = await database.Events.Where(raid => raid.GuildId == guildId && raid.Status == "published")
+        var recentEvents = isMember ? await database.Events.Where(raid => raid.GuildId == guildId && raid.Status == "published")
             .OrderByDescending(raid => raid.StartsAt).Take(10)
-            .Select(raid => new RecentEventResponse(raid.Id, raid.Title, raid.StartsAt, raid.StartsAt.AddMinutes(raid.DurationMin))).ToArrayAsync(token);
+            .Select(raid => new RecentEventResponse(raid.Id, raid.Title, raid.StartsAt, raid.StartsAt.AddMinutes(raid.DurationMin))).ToArrayAsync(token) : [];
         var application = await database.Applications.SingleOrDefaultAsync(application => application.GuildId == guildId &&
             application.UserId == operations.UserId && application.Status == "pending", token);
         return ApiResponse.Success(new GuildDetailResponse(summary.Id, summary.Name, summary.Server, summary.Intro,
-            summary.RecruitRequirements, summary.Recruiting, summary.MemberCount, summary.Version, [.. profiles], recentEvents,
+            summary.RecruitRequirements, summary.Recruiting, summary.MemberCount, summary.Version, publicMembers, recentEvents,
             application is null ? null : await views.ApplicationAsync(application, false, token)));
     }
     [HttpPatch("{guildId:guid}")]
