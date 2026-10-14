@@ -14,13 +14,9 @@ public static class AuthenticationRegistration
     public static IServiceCollection AddPlatformAuthentication(this IServiceCollection services)
     {
         services.AddScoped<IUserAccountStateReader, UserAccountStateReader>();
-        services.AddSingleton<IAuthorizationHandler, VerifiedEmailHandler>();
         services.AddAuthorization(options =>
         {
-            var policy = new AuthorizationPolicyBuilder()
-                .RequireAuthenticatedUser().AddRequirements(new VerifiedEmailRequirement()).Build();
-            options.AddPolicy(VerifiedEmailRequirement.PolicyName, policy);
-            options.FallbackPolicy = policy;
+            options.FallbackPolicy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build();
         });
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
         services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
@@ -71,30 +67,29 @@ public static class AuthenticationRegistration
             var state = await reader.FindAsync(userId, context.HttpContext.RequestAborted);
             if (state is null || !state.IsActive)
             {
-                context.HttpContext.Items[VerifiedEmailRequirement.ErrorItemKey] =
+                context.HttpContext.Items[AuthItemKeys.Error] =
                     state is null ? "ACCOUNT_NOT_FOUND" : "ACCOUNT_DISABLED";
                 context.Fail("账号不可用");
                 return;
             }
-            context.HttpContext.Items[VerifiedEmailRequirement.StateItemKey] = state;
         },
         OnAuthenticationFailed = context =>
         {
             if (context.Exception is NpgsqlException)
             {
-                context.HttpContext.Items[VerifiedEmailRequirement.ErrorItemKey] = "AUTH_STATE_UNAVAILABLE";
+                context.HttpContext.Items[AuthItemKeys.Error] = "AUTH_STATE_UNAVAILABLE";
                 context.Fail("认证状态服务暂不可用");
             }
             else if (context.Exception is SecurityTokenExpiredException)
             {
-                context.HttpContext.Items[VerifiedEmailRequirement.ErrorItemKey] = "TOKEN_EXPIRED";
+                context.HttpContext.Items[AuthItemKeys.Error] = "TOKEN_EXPIRED";
             }
             return Task.CompletedTask;
         },
         OnChallenge = async context =>
         {
             context.HandleResponse();
-            var code = context.HttpContext.Items[VerifiedEmailRequirement.ErrorItemKey] as string
+            var code = context.HttpContext.Items[AuthItemKeys.Error] as string
                 ?? "AUTHENTICATION_REQUIRED";
             context.Response.StatusCode = code switch
             {
@@ -118,12 +113,9 @@ public static class AuthenticationRegistration
         },
         OnForbidden = async context =>
         {
-            var needsBinding = context.HttpContext.Items[VerifiedEmailRequirement.StateItemKey]
-                is UserAccountState { HasVerifiedEmail: false };
             context.Response.StatusCode = StatusCodes.Status403Forbidden;
             await context.Response.WriteAsJsonAsync(ApiResponse.Failure(context.HttpContext,
-                needsBinding ? "EMAIL_BINDING_REQUIRED" : "PERMISSION_DENIED",
-                needsBinding ? "请先完成邮箱绑定" : "你没有此操作的权限"),
+                "PERMISSION_DENIED", "你没有此操作的权限"),
                 context.HttpContext.RequestAborted);
         }
     };

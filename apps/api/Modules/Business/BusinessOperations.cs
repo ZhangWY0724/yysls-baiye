@@ -42,8 +42,6 @@ public sealed class BusinessOperations(YanyunDbContext database, IHttpContextAcc
         var account = await database.Users.AsNoTracking().SingleOrDefaultAsync(user => user.Id == UserId, cancellationToken)
             ?? throw new BusinessException(401, "ACCOUNT_NOT_FOUND", "账号已注销");
         if (account.Status != "active") throw new BusinessException(403, "ACCOUNT_DISABLED", "账号不可用");
-        if (operation != "account.delete" && account.EmailVerifiedAt is null)
-            throw new BusinessException(403, "EMAIL_BINDING_REQUIRED", "请先验证邮箱");
         Guid key = default;
         // 旧调用保持兼容；任何写操作显式提供标识时都启用幂等记录。
         idempotent = idempotent || Context.Request.Headers.ContainsKey("Idempotency-Key");

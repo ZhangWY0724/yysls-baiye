@@ -33,7 +33,7 @@ public sealed class DiscoveryController(YanyunDbContext database, BusinessOperat
                 """).Where(profile => (server == null || profile.Server == server) && (style == null || profile.Styles.Contains(style)));
         }
         var matchingUsers = profiles.Select(profile => profile.UserId);
-        var users = database.Users.Where(user => user.Status == "active" && user.EmailVerifiedAt != null &&
+        var users = database.Users.Where(user => user.Status == "active" &&
             !database.Memberships.Any(member => member.UserId == user.Id) && matchingUsers.Contains(user.Id));
         var total = await users.CountAsync(token);
         var rows = await users.OrderBy(user => user.Nickname).ThenBy(user => user.Id).Skip((page - 1) * pageSize).Take(pageSize).ToArrayAsync(token);
@@ -52,7 +52,7 @@ public sealed class DiscoveryController(YanyunDbContext database, BusinessOperat
     [HttpGet("players/{userId:guid}")]
     public async Task<ApiResponse<PlayerResponse>> Player(Guid userId, CancellationToken token)
     {
-        var user = await database.Users.SingleOrDefaultAsync(user => user.Id == userId && user.Status == "active" && user.EmailVerifiedAt != null &&
+        var user = await database.Users.SingleOrDefaultAsync(user => user.Id == userId && user.Status == "active" &&
             !database.Memberships.Any(member => member.UserId == user.Id), token) ?? throw BusinessOperations.Missing();
         var profiles = await database.Profiles.Where(profile => profile.UserId == userId && profile.DeletedAt == null).ToArrayAsync(token);
         return ApiResponse.Success(new PlayerResponse(user.Id, user.Nickname, [.. profiles.Select(profile => new PublicProfileResponse(

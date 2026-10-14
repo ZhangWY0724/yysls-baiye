@@ -134,7 +134,7 @@ function Platform() {
     };
   }, [publicPage, router, session]);
   useEffect(() => {
-    if (publicPage || !me || me.requires_email_binding) return;
+    if (publicPage || !me) return;
     let stopped = false;
     const connection = new HubConnectionBuilder()
       .withUrl(
@@ -195,7 +195,6 @@ function Platform() {
   }, [
     publicPage,
     me?.user_id,
-    me?.requires_email_binding,
     notifications,
     refreshUnread,
     reload,
@@ -286,15 +285,6 @@ function Platform() {
   let content;
   if (path === "/settings/account-deletion")
     content = <AccountDeletion me={me} />;
-  else if (me.requires_email_binding)
-    content = (
-      <EmptyState
-        title="当前账号尚未验证邮箱"
-        action={<ButtonLink href="/settings/account-deletion" variant="danger-ghost">注销账号</ButtonLink>}
-      >
-        QQ 登录暂缓，验证邮箱后才能使用百业功能。
-      </EmptyState>
-    );
   else if (path === "/me/week")
     content = <MyWeekPage me={me} unread={unread} />;
   else if (path === "/settings")

@@ -186,7 +186,7 @@ public sealed class RaidsController(YanyunDbContext database, BusinessOperations
             var profile = await database.Profiles.SingleOrDefaultAsync(profile => profile.Id == request.ProfileId && profile.DeletedAt == null, token) ?? throw BusinessOperations.Missing();
             if (request.Action == "signup" && (profile.UserId != operations.UserId || raid.SignupMode != "open")) throw BusinessOperations.Forbidden();
             var member = await database.Memberships.SingleOrDefaultAsync(member => member.UserId == profile.UserId && member.GuildId == raid.GuildId, token) ?? throw BusinessOperations.Missing();
-            if (!await database.Users.AnyAsync(user => user.Id == profile.UserId && user.Status == "active" && user.EmailVerifiedAt != null, token))
+            if (!await database.Users.AnyAsync(user => user.Id == profile.UserId && user.Status == "active", token))
                 throw BusinessOperations.Missing();
             var guild = await operations.GuildAsync(raid.GuildId, token);
             if (profile.Server != guild.Server) throw BusinessOperations.Invalid("角色区服不匹配");

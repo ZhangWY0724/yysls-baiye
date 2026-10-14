@@ -1,6 +1,6 @@
 # 燕云百业组队平台
 
-Next.js 15 / React 19 前端，ASP.NET Core 10 模块单体后端，PostgreSQL 16、Redis 7.4 与 SignalR。业务页面已接真实接口；QQ 登录按本次决定暂停，邮件仅用于邮箱注册验证，不发送业务邮件。无附件、头像或文件存储。
+Next.js 15 / React 19 前端，ASP.NET Core 10 模块单体后端，PostgreSQL 16、Redis 7.4 与 SignalR。业务页面已接真实接口；不提供 QQ 登录，邮件仅用于邮箱注册验证，不发送业务邮件。无附件、头像或文件存储。
 
 ## 当前功能
 

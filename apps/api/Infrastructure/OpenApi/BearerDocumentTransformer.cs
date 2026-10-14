@@ -12,7 +12,7 @@ public sealed class BearerDocumentTransformer : IOpenApiDocumentTransformer, IOp
     {
         document.Info.Title = "燕云百业平台 API";
         document.Info.Version = "v1";
-        document.Info.Description = "一期真实业务接口：邮箱认证、角色、百业成员协作、副本排班、参与统计与站内通知。QQ 登录暂缓。";
+        document.Info.Description = "一期真实业务接口：邮箱认证、角色、百业成员协作、副本排班、参与统计与站内通知。";
         document.Components ??= new OpenApiComponents();
         document.Components.SecuritySchemes ??= new Dictionary<string, IOpenApiSecurityScheme>();
         document.Components.SecuritySchemes["Bearer"] = new OpenApiSecurityScheme

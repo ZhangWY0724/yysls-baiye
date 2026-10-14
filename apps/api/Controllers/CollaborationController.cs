@@ -215,7 +215,7 @@ public sealed class CollaborationController(YanyunDbContext database, BusinessOp
         await query.Select(id => (Guid?)id).SingleOrDefaultAsync(token);
     private async Task CanJoin(Guild guild, Guid userId, CancellationToken token)
     {
-        if (!await database.Users.AnyAsync(user => user.Id == userId && user.Status == "active" && user.EmailVerifiedAt != null, token)) throw BusinessOperations.Missing();
+        if (!await database.Users.AnyAsync(user => user.Id == userId && user.Status == "active", token)) throw BusinessOperations.Missing();
         if (await database.Memberships.AnyAsync(member => member.UserId == userId, token)) throw BusinessOperations.Conflict("ALREADY_IN_GUILD", "该账号已加入百业");
         if (!await database.Profiles.AnyAsync(profile => profile.UserId == userId && profile.DeletedAt == null && profile.Server == guild.Server, token))
             throw BusinessOperations.Invalid("需要对应区服的角色");

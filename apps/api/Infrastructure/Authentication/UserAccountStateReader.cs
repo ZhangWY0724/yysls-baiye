@@ -8,8 +8,6 @@ public sealed class UserAccountStateReader(YanyunDbContext dbContext) : IUserAcc
     public Task<UserAccountState?> FindAsync(Guid userId, CancellationToken cancellationToken)
         => dbContext.Users.AsNoTracking()
             .Where(user => user.Id == userId)
-            .Select(user => new UserAccountState(user.Status == "active",
-                user.Email != null && user.Email != "" && user.NormalizedEmail != null &&
-                user.NormalizedEmail != "" && user.EmailVerifiedAt != null))
+            .Select(user => new UserAccountState(user.Status == "active"))
             .SingleOrDefaultAsync(cancellationToken);
 }

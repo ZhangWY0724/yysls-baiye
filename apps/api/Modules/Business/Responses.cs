@@ -11,7 +11,7 @@ public sealed record PublicProfileResponse(Guid ProfileId, Guid UserId, string N
 public sealed record MembershipResponse(Guid MembershipId, Guid GuildId, string GuildName, string Role,
     DateTimeOffset JoinedAt, long GuildVersion);
 public sealed record MeResponse(Guid UserId, string Nickname, string? Email, DateTimeOffset? EmailVerifiedAt,
-    bool RequiresEmailBinding, ProfileResponse? DefaultProfile, MembershipResponse? Membership);
+    ProfileResponse? DefaultProfile, MembershipResponse? Membership);
 public record GuildResponse(Guid Id, string Name, string Server, string Intro, string RecruitRequirements,
     bool Recruiting, int MemberCount, long Version);
 public sealed record GuildCreatedResponse(Guid Id, string Name, string Server, string Intro, string RecruitRequirements,

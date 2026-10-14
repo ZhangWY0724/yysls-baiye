@@ -41,7 +41,7 @@ public sealed class ReminderService(IServiceScopeFactory scopes, ILogger<Reminde
                 join user in database.Users on assignment.UserId equals user.Id
                 where raid.Status == "published" && raid.ReminderEnabled && raid.StartsAt > now &&
                     raid.StartsAt.AddMinutes(-raid.RemindMinutes) <= now && assignment.Status == "confirmed" &&
-                    member.GuildId == raid.GuildId && member.UserId == assignment.UserId && user.Status == "active" && user.EmailVerifiedAt != null &&
+                    member.GuildId == raid.GuildId && member.UserId == assignment.UserId && user.Status == "active" &&
                     !database.Notifications.Any(notification => notification.DedupeKey ==
                         "reminder:" + raid.Id.ToString() + ":" + assignment.UserId.ToString())
                 orderby raid.StartsAt, raid.Id
