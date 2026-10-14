@@ -1250,7 +1250,10 @@ export interface paths {
         post: {
             parameters: {
                 query?: never;
-                header?: never;
+                header?: {
+                    /** @description 可选 UUID；创建请求和重试复用相同标识可避免重复写入 */
+                    "Idempotency-Key"?: string;
+                };
                 path: {
                     guildId: string;
                 };
@@ -1792,7 +1795,10 @@ export interface paths {
         post: {
             parameters: {
                 query?: never;
-                header?: never;
+                header?: {
+                    /** @description 可选 UUID；创建请求和重试复用相同标识可避免重复写入 */
+                    "Idempotency-Key"?: string;
+                };
                 path: {
                     applicationId: string;
                 };
@@ -2131,7 +2137,10 @@ export interface paths {
         post: {
             parameters: {
                 query?: never;
-                header?: never;
+                header?: {
+                    /** @description 可选 UUID；创建请求和重试复用相同标识可避免重复写入 */
+                    "Idempotency-Key"?: string;
+                };
                 path: {
                     guildId: string;
                 };
@@ -3195,7 +3204,10 @@ export interface paths {
         post: {
             parameters: {
                 query?: never;
-                header?: never;
+                header?: {
+                    /** @description 可选 UUID；创建请求和重试复用相同标识可避免重复写入 */
+                    "Idempotency-Key"?: string;
+                };
                 path: {
                     invitationId: string;
                 };
@@ -3370,7 +3382,10 @@ export interface paths {
         post: {
             parameters: {
                 query?: never;
-                header?: never;
+                header?: {
+                    /** @description 可选 UUID；创建请求和重试复用相同标识可避免重复写入 */
+                    "Idempotency-Key"?: string;
+                };
                 path: {
                     invitationId: string;
                 };
@@ -5472,7 +5487,10 @@ export interface paths {
         post: {
             parameters: {
                 query?: never;
-                header?: never;
+                header?: {
+                    /** @description 可选 UUID；创建请求和重试复用相同标识可避免重复写入 */
+                    "Idempotency-Key"?: string;
+                };
                 path: {
                     guildId: string;
                 };
@@ -5653,7 +5671,10 @@ export interface paths {
         post: {
             parameters: {
                 query?: never;
-                header?: never;
+                header?: {
+                    /** @description 可选 UUID；创建请求和重试复用相同标识可避免重复写入 */
+                    "Idempotency-Key"?: string;
+                };
                 path: {
                     guildId: string;
                 };
@@ -7369,7 +7390,10 @@ export interface paths {
         post: {
             parameters: {
                 query?: never;
-                header?: never;
+                header?: {
+                    /** @description 可选 UUID；创建请求和重试复用相同标识可避免重复写入 */
+                    "Idempotency-Key"?: string;
+                };
                 path?: never;
                 cookie?: never;
             };
@@ -8050,6 +8074,8 @@ export interface paths {
                 header: {
                     /** @description 通过 auth/csrf 获取；注销时携带本人 Bearer 获取相应凭证 */
                     "X-CSRF-TOKEN": string;
+                    /** @description 可选 UUID；创建请求和重试复用相同标识可避免重复写入 */
+                    "Idempotency-Key"?: string;
                 };
                 path?: never;
                 cookie?: never;
@@ -8569,7 +8595,10 @@ export interface paths {
         post: {
             parameters: {
                 query?: never;
-                header?: never;
+                header?: {
+                    /** @description 可选 UUID；创建请求和重试复用相同标识可避免重复写入 */
+                    "Idempotency-Key"?: string;
+                };
                 path: {
                     guildId: string;
                 };

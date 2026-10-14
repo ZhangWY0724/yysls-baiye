@@ -7,7 +7,9 @@ dotnet restore "Yanyun.slnx" >> %LOG% 2>&1
 echo RESTORE_EXIT=%ERRORLEVEL% >> %LOG%
 echo === dotnet build === >> %LOG%
 dotnet build "Yanyun.slnx" -c Release --no-restore >> %LOG% 2>&1
-echo BUILD_EXIT=%ERRORLEVEL% >> %LOG%
+set BUILD_RESULT=%ERRORLEVEL%
+echo BUILD_EXIT=%BUILD_RESULT% >> %LOG%
+if not "%BUILD_RESULT%"=="0" (echo STOPPED_AFTER_BUILD_FAILURE >> %LOG% & goto :eof)
 echo === dotnet test === >> %LOG%
 dotnet test "Yanyun.slnx" -c Release --no-build >> %LOG% 2>&1
 echo TEST_EXIT=%ERRORLEVEL% >> %LOG%
