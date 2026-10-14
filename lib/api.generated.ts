@@ -11416,7 +11416,6 @@ export interface components {
             email: null | string;
             /** Format: date-time */
             email_verified_at: null | string;
-            requires_email_binding: boolean;
             default_profile: null | components["schemas"]["ProfileResponse"];
             membership: null | components["schemas"]["MembershipResponse"];
         };

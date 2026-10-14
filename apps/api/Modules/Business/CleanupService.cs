@@ -117,7 +117,7 @@ public sealed class CleanupService(YanyunDbContext database, NotificationPublish
             foreach (var assignment in waiting)
             {
                 if (count >= capacity) break;
-                if (!await database.Users.AnyAsync(user => user.Id == assignment.UserId && user.Status == "active" && user.EmailVerifiedAt != null, token)) continue;
+                if (!await database.Users.AnyAsync(user => user.Id == assignment.UserId && user.Status == "active", token)) continue;
                 if (await HasConflictAsync(assignment.UserId, raid, token)) continue;
                 var seat = Seats.FirstFree(raid, role, await database.Assignments.Where(row => row.EventId == eventId && row.Status == "confirmed").Select(row => row.SlotIndex).ToArrayAsync(token));
                 if (seat is null) break;

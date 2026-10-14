@@ -43,7 +43,7 @@ public sealed class BusinessViews(YanyunDbContext database)
         var user = await database.Users.SingleOrDefaultAsync(user => user.Id == userId, token) ?? throw BusinessOperations.Missing();
         var profile = await DefaultProfileAsync(userId, token);
         var membership = await database.Memberships.SingleOrDefaultAsync(member => member.UserId == userId, token);
-        return new(user.Id, user.Nickname, user.Email, user.EmailVerifiedAt, user.EmailVerifiedAt is null,
+        return new(user.Id, user.Nickname, user.Email, user.EmailVerifiedAt,
             profile is null ? null : Profile(profile, profile.Id), membership is null ? null : await MembershipAsync(membership, token));
     }
     public async Task<MembershipResponse> MembershipAsync(Membership member, CancellationToken token)

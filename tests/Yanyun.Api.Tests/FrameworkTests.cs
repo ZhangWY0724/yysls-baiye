@@ -54,24 +54,12 @@ public sealed class FrameworkTests : IClassFixture<ApiFactory>
     public async Task VerifiedActiveAccountCanAccessBusinessEndpoint()
     {
         var userId = Guid.NewGuid();
-        _factory.Accounts[userId] = new(true, true);
+        _factory.Accounts[userId] = new(true);
         using var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Authorization = new("Bearer", CreateToken(userId));
         var response = await client.GetAsync("/api/v1/test-probe/protected");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Contains("has_access", await response.Content.ReadAsStringAsync());
-    }
-
-    [Fact]
-    public async Task JwtClaimCannotBypassCurrentEmailBindingState()
-    {
-        var userId = Guid.NewGuid();
-        _factory.Accounts[userId] = new(true, false);
-        using var client = _factory.CreateClient();
-        client.DefaultRequestHeaders.Authorization = new("Bearer", CreateToken(userId));
-        var response = await client.GetAsync("/api/v1/test-probe/protected");
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-        await AssertError(response, "EMAIL_BINDING_REQUIRED");
     }
 
     [Fact]
@@ -88,7 +76,7 @@ public sealed class FrameworkTests : IClassFixture<ApiFactory>
     public async Task DisabledAccountIsForbidden()
     {
         var userId = Guid.NewGuid();
-        _factory.Accounts[userId] = new(false, true);
+        _factory.Accounts[userId] = new(false);
         using var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Authorization = new("Bearer", CreateToken(userId));
         var response = await client.GetAsync("/api/v1/test-probe/protected");
@@ -113,7 +101,7 @@ public sealed class FrameworkTests : IClassFixture<ApiFactory>
     public async Task ExpiredAndIncorrectlySignedTokensAreRejected()
     {
         var userId = Guid.NewGuid();
-        _factory.Accounts[userId] = new(true, true);
+        _factory.Accounts[userId] = new(true);
         using var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Authorization = new("Bearer", CreateToken(userId, expired: true));
         var expiredResponse = await client.GetAsync("/api/v1/test-probe/protected");
@@ -129,7 +117,7 @@ public sealed class FrameworkTests : IClassFixture<ApiFactory>
     public async Task QueryTokenIsAcceptedOnlyForNotificationHub()
     {
         var userId = Guid.NewGuid();
-        _factory.Accounts[userId] = new(true, true);
+        _factory.Accounts[userId] = new(true);
         using var client = _factory.CreateClient();
         var token = Uri.EscapeDataString(CreateToken(userId));
         Assert.Equal(HttpStatusCode.Unauthorized,
@@ -137,18 +125,6 @@ public sealed class FrameworkTests : IClassFixture<ApiFactory>
         var hubResponse = await client.PostAsync(
             $"/hubs/notifications/negotiate?negotiateVersion=1&access_token={token}", null);
         Assert.Equal(HttpStatusCode.OK, hubResponse.StatusCode);
-    }
-
-    [Fact]
-    public async Task HubRejectsAccountThatStillNeedsEmailBinding()
-    {
-        var userId = Guid.NewGuid();
-        _factory.Accounts[userId] = new(true, false);
-        using var client = _factory.CreateClient();
-        client.DefaultRequestHeaders.Authorization = new("Bearer", CreateToken(userId));
-        var response = await client.PostAsync("/hubs/notifications/negotiate?negotiateVersion=1", null);
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-        await AssertError(response, "EMAIL_BINDING_REQUIRED");
     }
 
     [Fact]

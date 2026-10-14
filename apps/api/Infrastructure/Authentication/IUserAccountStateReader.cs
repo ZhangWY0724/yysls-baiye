@@ -1,6 +1,6 @@
 namespace Yanyun.Api.Infrastructure.Authentication;
 
-public sealed record UserAccountState(bool IsActive, bool HasVerifiedEmail);
+public sealed record UserAccountState(bool IsActive);
 
 public interface IUserAccountStateReader
 {
