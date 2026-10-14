@@ -1,0 +1,15 @@
+# 同域名：页面走前端，接口与 SignalR 走 API。把 yy.example.com 换成你的域名。
+# Caddy 在宿主机上运行时可直接使用 127.0.0.1；若 Caddy 本身在容器里，把地址换成 host.docker.internal 或加入同一网络。
+yy.example.com {
+	encode zstd gzip
+
+	handle /api/v1/* {
+		reverse_proxy 127.0.0.1:5080
+	}
+	handle /hubs/* {
+		reverse_proxy 127.0.0.1:5080
+	}
+	handle {
+		reverse_proxy 127.0.0.1:3000
+	}
+}

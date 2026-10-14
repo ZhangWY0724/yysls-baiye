@@ -1,0 +1,51 @@
+# 生产部署：只包含 API 与前端。PostgreSQL / Redis 使用服务器上已运行的实例（docker/compose.server.yml），
+# HTTPS 与同域路由由服务器上的 Caddy 负责（见 docker/Caddyfile.example）。
+# 用法（在仓库根目录）：docker compose -f docker/compose.prod.yml --env-file docker/.env up -d --build
+name: yanyun-prod
+
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: docker/api.Dockerfile
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      AllowedHosts: ${PUBLIC_HOST:?请填写 PUBLIC_HOST，例如 yy.example.com}
+      ConnectionStrings__Postgres: Host=host.docker.internal;Port=${POSTGRES_PORT:-5432};Database=${POSTGRES_DB:-yanyun};Username=${POSTGRES_USER:-yanyun};Password=${POSTGRES_PASSWORD:?请填写 POSTGRES_PASSWORD};Timeout=3;Command Timeout=5
+      ConnectionStrings__Redis: host.docker.internal:${REDIS_PORT:-6379},password=${REDIS_PASSWORD:?请填写 REDIS_PASSWORD}
+      Auth__SigningKey: ${JWT_SIGNING_KEY:?请填写 JWT_SIGNING_KEY（至少 32 字节随机值）}
+      Email__ResendApiKey: ${RESEND_API_KEY:?请填写 RESEND_API_KEY}
+      Email__From: ${EMAIL_FROM:?请填写 EMAIL_FROM}
+      Cors__AllowedOrigins__0: ${PUBLIC_ORIGIN:?请填写 PUBLIC_ORIGIN，例如 https://yy.example.com}
+      Redis__KeyPrefix: ${REDIS_KEY_PREFIX:-yanyun:prod:}
+      DataProtection__KeysPath: /app/keys
+      # 信任 Caddy 经 Docker 网关转发的 X-Forwarded-*（与下方固定网段一致）。
+      Proxy__KnownProxies__0: 172.28.0.1
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "127.0.0.1:5080:8080"
+    volumes:
+      # 持久化 Data Protection 密钥：邀请码加密、CSRF Cookie 都依赖它，丢失后已加密的邀请链接无法找回。
+      - data-protection:/app/keys
+
+  web:
+    build:
+      context: ..
+      dockerfile: docker/web.Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "127.0.0.1:3000:3000"
+
+volumes:
+  data-protection:
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.28.0.0/24
+          gateway: 172.28.0.1

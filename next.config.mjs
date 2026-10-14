@@ -2,6 +2,7 @@
 const nextConfig = {
   reactStrictMode: true,
   devIndicators: false,
+  output: "standalone",
   distDir: process.env.NODE_ENV === "development" ? ".next-dev" : ".next",
   async rewrites() {
     const api = process.env.API_INTERNAL_URL || "http://127.0.0.1:5080";
