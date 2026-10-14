@@ -693,70 +693,6 @@ namespace Yanyun.Api.Migrations
                     b.ToTable("notifications", (string)null);
                 });
 
-            modelBuilder.Entity("Yanyun.Api.Modules.Business.OutboxEvent", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<int>("Attempts")
-                        .HasColumnType("integer")
-                        .HasColumnName("attempts");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<Guid?>("EventId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("event_id");
-
-                    b.Property<Guid?>("GuildId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("guild_id");
-
-                    b.Property<DateTimeOffset>("NextAttemptAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("next_attempt_at");
-
-                    b.Property<string>("PayloadJson")
-                        .IsRequired()
-                        .HasColumnType("jsonb")
-                        .HasColumnName("payload_json");
-
-                    b.Property<DateTimeOffset?>("ProcessedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("processed_at");
-
-                    b.PrimitiveCollection<Guid[]>("RelatedUserIds")
-                        .IsRequired()
-                        .HasColumnType("uuid[]")
-                        .HasColumnName("related_user_ids");
-
-                    b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("user_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("EventId");
-
-                    b.HasIndex("GuildId");
-
-                    b.HasIndex("NextAttemptAt")
-                        .HasFilter("processed_at IS NULL");
-
-                    b.HasIndex("RelatedUserIds");
-
-                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("RelatedUserIds"), "gin");
-
-                    b.ToTable("outbox_events", (string)null);
-                });
-
             modelBuilder.Entity("Yanyun.Api.Modules.Business.RaidEvent", b =>
                 {
                     b.Property<Guid>("Id")
@@ -803,10 +739,6 @@ namespace Yanyun.Api.Migrations
                     b.Property<bool>("ReminderEnabled")
                         .HasColumnType("boolean")
                         .HasColumnName("reminder_enabled");
-
-                    b.Property<long>("ReminderVersion")
-                        .HasColumnType("bigint")
-                        .HasColumnName("reminder_version");
 
                     b.Property<string>("SignupMode")
                         .IsRequired()

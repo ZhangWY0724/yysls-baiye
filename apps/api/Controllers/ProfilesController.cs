@@ -102,7 +102,9 @@ public sealed class ProfilesController(YanyunDbContext database, BusinessOperati
     public async Task<ApiResponse<DeletedResponse>> DeleteAccount(AccountDeletionRequest request, CancellationToken token)
     {
         if (request.ConfirmUserId != operations.UserId || request.Confirmation != "DELETE") throw BusinessOperations.Invalid("注销确认不匹配");
-        var result = await operations.WriteAsync("account.delete", request, null, null, false, async () =>
+        var guildId = await database.Memberships.Where(member => member.UserId == operations.UserId)
+            .Select(member => (Guid?)member.GuildId).SingleOrDefaultAsync(token);
+        var result = await operations.WriteAsync("account.delete", request, guildId, null, false, async () =>
         {
             await cleanup.AccountAsync(operations.UserId, token);
             return new DeletedResponse(true);

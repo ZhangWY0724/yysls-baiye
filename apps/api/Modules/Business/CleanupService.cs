@@ -65,7 +65,6 @@ public sealed class CleanupService(YanyunDbContext database, NotificationPublish
     {
         await database.Assignments.Where(assignment => eventIds.Contains(assignment.EventId)).ExecuteDeleteAsync(token);
         await database.Notifications.Where(row => row.EventId != null && eventIds.Contains(row.EventId.Value)).ExecuteDeleteAsync(token);
-        await database.Outbox.Where(row => row.EventId != null && eventIds.Contains(row.EventId.Value)).ExecuteDeleteAsync(token);
         await database.Idempotency.Where(row => row.EventId != null && eventIds.Contains(row.EventId.Value)).ExecuteDeleteAsync(token);
         await database.Audit.Where(row => row.EventId != null && eventIds.Contains(row.EventId.Value)).ExecuteDeleteAsync(token);
         await database.Events.Where(raid => eventIds.Contains(raid.Id)).ExecuteDeleteAsync(token);
@@ -77,8 +76,6 @@ public sealed class CleanupService(YanyunDbContext database, NotificationPublish
             .Select(row => row.UserId).Distinct().ToArrayAsync(token);
         foreach (var user in recipients) publisher.Queue(user, "deleted");
         await database.Notifications.Where(row => (guildId == null || row.GuildId == guildId) &&
-            (userId == null || row.UserId == userId || row.RelatedUserIds.Contains(userId.Value))).ExecuteDeleteAsync(token);
-        await database.Outbox.Where(row => (guildId == null || row.GuildId == guildId) &&
             (userId == null || row.UserId == userId || row.RelatedUserIds.Contains(userId.Value))).ExecuteDeleteAsync(token);
         await database.Idempotency.Where(row => (guildId == null || row.GuildId == guildId) &&
             (userId == null || row.UserId == userId || row.RelatedUserIds.Contains(userId.Value))).ExecuteDeleteAsync(token);
@@ -101,10 +98,9 @@ public sealed class CleanupService(YanyunDbContext database, NotificationPublish
                 if (await HasConflictAsync(assignment.UserId, raid, token)) continue;
                 assignment.Status = "confirmed";
                 count++;
-                var outbox = new OutboxEvent { UserId = assignment.UserId, GuildId = raid.GuildId, EventId = raid.Id,
-                    RelatedUserIds = [assignment.UserId], PayloadJson = BusinessJson.Serialize(new { Type = "assignment.promoted", Title = "候补已递补",
-                        Body = $"你已进入「{raid.Title}」正式队伍", Target = new { Kind = "raid_event", raid.GuildId, EventId = raid.Id } }) };
-                database.Outbox.Add(outbox);
+                database.Notifications.Add(NotificationFactory.Create(assignment.UserId, raid.GuildId, raid.Id, "assignment.promoted",
+                    "候补已递补", $"你已进入「{raid.Title}」正式队伍", new { Kind = "raid_event", raid.GuildId, EventId = raid.Id }));
+                publisher.Queue(assignment.UserId, "created");
             }
         }
         raid.Version++;

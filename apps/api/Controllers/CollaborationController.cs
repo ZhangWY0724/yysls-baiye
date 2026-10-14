@@ -78,7 +78,8 @@ public sealed class CollaborationController(YanyunDbContext database, BusinessOp
     }
     [HttpPost("applications/{applicationId:guid}/withdraw")]
     public async Task<ApiResponse<ApplicationResponse>> Withdraw(Guid applicationId, CancellationToken token) => ApiResponse.Success(
-        await operations.WriteAsync($"application.withdraw:{applicationId}", new { applicationId }, null, null, false, async () =>
+        await operations.WriteAsync($"application.withdraw:{applicationId}", new { applicationId }, await GuildOf(database.Applications
+            .Where(application => application.Id == applicationId).Select(application => application.GuildId), token), null, false, async () =>
         {
             var application = await database.Applications.SingleOrDefaultAsync(application => application.Id == applicationId && application.UserId == operations.UserId, token) ?? throw BusinessOperations.Missing();
             if (application.Status == "withdrawn") return await views.ApplicationAsync(application, false, token);
@@ -178,7 +179,8 @@ public sealed class CollaborationController(YanyunDbContext database, BusinessOp
     [HttpPost("invitations/{invitationId:guid}/revoke")]
     public Task<ApiResponse<InvitationResponse>> Revoke(Guid invitationId, CancellationToken token) => ChangeInvitation(invitationId, true, token);
     private async Task<ApiResponse<InvitationResponse>> ChangeInvitation(Guid id, bool revoke, CancellationToken token) => ApiResponse.Success(
-        await operations.WriteAsync($"invitation.{(revoke ? "revoke" : "decline")}:{id}", new { id }, null, null, false, async () =>
+        await operations.WriteAsync($"invitation.{(revoke ? "revoke" : "decline")}:{id}", new { id }, await GuildOf(database.Invitations
+            .Where(invitation => invitation.Id == id).Select(invitation => invitation.GuildId), token), null, false, async () =>
         {
             var invitation = await database.Invitations.SingleOrDefaultAsync(invitation => invitation.Id == id, token) ?? throw BusinessOperations.Missing();
             if (revoke) await operations.MemberAsync(invitation.GuildId, true, false, token);
@@ -191,6 +193,8 @@ public sealed class CollaborationController(YanyunDbContext database, BusinessOp
                 "玩家已拒绝加入百业", new { Kind = "guild", invitation.GuildId }, invitation.TargetUserId!.Value);
             return await views.InvitationAsync(invitation, token);
         }, token));
+    private static async Task<Guid?> GuildOf(IQueryable<Guid> query, CancellationToken token) =>
+        await query.Select(id => (Guid?)id).SingleOrDefaultAsync(token);
     private async Task CanJoin(Guild guild, Guid userId, CancellationToken token)
     {
         if (!await database.Users.AnyAsync(user => user.Id == userId && user.Status == "active" && user.EmailVerifiedAt != null, token)) throw BusinessOperations.Missing();

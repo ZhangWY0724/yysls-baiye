@@ -292,7 +292,7 @@ public sealed class BusinessTests : IAsyncLifetime
     }
 
     [InfrastructureFact]
-    public async Task OutboxRemindersReadCursorAndSignalRDeliverRealNotifications()
+    public async Task RemindersReadCursorAndSignalRDeliverRealNotifications()
     {
         var account=await Account();using var client=account.Client;var profile=await Profile(client);var guild=await Guild(client);
         var raid=await Event(client,guild,DateTimeOffset.UtcNow.AddMinutes(20));
@@ -305,13 +305,8 @@ public sealed class BusinessTests : IAsyncLifetime
         using(var poll=await client.GetAsync(hub))Assert.Contains("{}",await poll.Content.ReadAsStringAsync());
         async Task Tick()
         {
-            using var scope=_factory.Services.CreateScope();var job=ActivatorUtilities.CreateInstance<NotificationJob>(scope.ServiceProvider);
-            await job.RunAsync(CancellationToken.None);
-        }
-        using(var scope=_factory.Services.CreateScope())
-        {
-            var db=scope.ServiceProvider.GetRequiredService<YanyunDbContext>();
-            db.Outbox.Add(new(){UserId=account.UserId,PayloadJson="{}"});await db.SaveChangesAsync();
+            using var scope=_factory.Services.CreateScope();
+            await ReminderService.RunOnceAsync(scope.ServiceProvider,CancellationToken.None);
         }
         await Tick();
         using(var poll=await client.GetAsync(hub))Assert.Contains("notifications.changed",await poll.Content.ReadAsStringAsync());
@@ -320,11 +315,6 @@ public sealed class BusinessTests : IAsyncLifetime
         var page=await Data(client,"/notifications?limit=1");var cursor=page.GetProperty("next_cursor").GetString();Assert.NotNull(cursor);
         Assert.Single((await Data(client,$"/notifications?limit=1&cursor={Uri.EscapeDataString(cursor!)}")).GetProperty("items").EnumerateArray());
         await Data(client,"/notifications/read","POST",new{all=true});Assert.Equal(0,(await Data(client,"/notifications/unread-count")).GetProperty("unread_count").GetInt32());
-        using(var check=_factory.Services.CreateScope())
-        {
-            var db=check.ServiceProvider.GetRequiredService<YanyunDbContext>();var poison=await db.Outbox.SingleAsync(row=>row.ProcessedAt==null);
-            Assert.Equal(1,poison.Attempts);Assert.True(poison.NextAttemptAt>DateTimeOffset.UtcNow);
-        }
         using var disconnect=await client.DeleteAsync(hub);disconnect.EnsureSuccessStatusCode();
     }
 

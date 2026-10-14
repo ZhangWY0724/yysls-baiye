@@ -16,7 +16,7 @@ public static class BusinessModel
             [typeof(Invitation)] = "invitations", [typeof(InvitationAcceptance)] = "invitation_acceptances",
             [typeof(DungeonTemplate)] = "dungeon_templates", [typeof(RaidEvent)] = "raid_events",
             [typeof(Assignment)] = "assignments", [typeof(Notification)] = "notifications",
-            [typeof(OutboxEvent)] = "outbox_events", [typeof(IdempotencyRecord)] = "idempotency_records",
+            [typeof(IdempotencyRecord)] = "idempotency_records",
             [typeof(AuditLog)] = "audit_logs"
         };
         foreach (var (type, table) in tables)
@@ -90,9 +90,8 @@ public static class BusinessModel
         model.Entity<Notification>().HasIndex(notification => notification.DedupeKey).IsUnique();
         model.Entity<Notification>().HasIndex(notification => new { notification.UserId, notification.CreatedAt, notification.Id });
         model.Entity<Notification>().HasIndex(notification => new { notification.UserId, notification.CreatedAt }).HasFilter("read_at IS NULL");
-        model.Entity<OutboxEvent>().HasIndex(outbox => outbox.NextAttemptAt).HasFilter("processed_at IS NULL");
         model.Entity<IdempotencyRecord>().HasIndex(record => new { record.UserId, record.Operation, record.Key }).IsUnique();
-        foreach (var type in new[] { typeof(Notification), typeof(OutboxEvent), typeof(IdempotencyRecord), typeof(AuditLog) })
+        foreach (var type in new[] { typeof(Notification), typeof(IdempotencyRecord), typeof(AuditLog) })
         {
             model.Entity(type).HasIndex("GuildId");
             model.Entity(type).HasIndex("EventId");

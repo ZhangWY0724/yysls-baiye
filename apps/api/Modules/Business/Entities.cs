@@ -93,7 +93,6 @@ public sealed class RaidEvent : Entity
     public bool ReminderEnabled { get; set; }
     public int RemindMinutes { get; set; }
     public long Version { get; set; } = 1;
-    public long ReminderVersion { get; set; } = 1;
 }
 public sealed class Assignment : Entity
 {
@@ -117,17 +116,6 @@ public sealed class Notification : Entity
     public string TargetJson { get; set; } = "{}";
     public string DedupeKey { get; set; } = "";
     public DateTimeOffset? ReadAt { get; set; }
-}
-public sealed class OutboxEvent : Entity
-{
-    public Guid UserId { get; set; }
-    public Guid? GuildId { get; set; }
-    public Guid? EventId { get; set; }
-    public Guid[] RelatedUserIds { get; set; } = [];
-    public string PayloadJson { get; set; } = "{}";
-    public DateTimeOffset? ProcessedAt { get; set; }
-    public int Attempts { get; set; }
-    public DateTimeOffset NextAttemptAt { get; set; } = DateTimeOffset.UtcNow;
 }
 public sealed class IdempotencyRecord : Entity
 {

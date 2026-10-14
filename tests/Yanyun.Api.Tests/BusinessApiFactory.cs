@@ -46,7 +46,6 @@ public sealed class BusinessApiFactory : WebApplicationFactory<Program>
         builder.ConfigureServices(services =>
         {
             services.AddDbContext<YanyunDbContext>(options => options.AddInterceptors(SaveFailure, Queries));
-            foreach (var descriptor in services.Where(service => service.ImplementationType == typeof(Quartz.QuartzHostedService)).ToArray()) services.Remove(descriptor);
             services.RemoveAll<NpgsqlDataSource>();
             services.AddSingleton(_ => NpgsqlDataSource.Create(_connection));
             services.RemoveAll<IVerificationEmailSender>(); services.AddSingleton<IVerificationEmailSender>(Emails);

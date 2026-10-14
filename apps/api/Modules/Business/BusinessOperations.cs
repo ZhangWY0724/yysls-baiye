@@ -17,14 +17,15 @@ public sealed class BusinessOperations(YanyunDbContext database, IHttpContextAcc
     public static BusinessException Forbidden() => new(403, "PERMISSION_DENIED", "你没有此操作的权限");
     public static BusinessException Conflict(string code, string message) => new(409, code, message);
 
-    // 所有业务写入与后台消费者共用事务级锁，先确保一期单实例并发和硬清理正确。
-    // 此锁不覆盖外部邮件请求，也不持有到 HTTP 返回。
-    public async Task<IDbContextTransaction> BeginAsync(CancellationToken cancellationToken)
+    // 写操作按百业串行（无百业时按操作者），保证容量、候补和成员变更的检查与写入原子；不同百业互不等待。
+    // 跨百业的唯一性（一个账号只能加入一个百业等）由数据库唯一约束兜底。
+    private async Task<IDbContextTransaction> BeginAsync(Guid scope, CancellationToken cancellationToken)
     {
         var transaction = await database.Database.BeginTransactionAsync(cancellationToken);
         try
         {
-            await database.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(72420261013)", cancellationToken);
+            await database.Database.ExecuteSqlInterpolatedAsync(
+                $"SELECT pg_advisory_xact_lock(hashtextextended({scope.ToString("D")}, 0))", cancellationToken);
             return transaction;
         }
         catch
@@ -35,9 +36,9 @@ public sealed class BusinessOperations(YanyunDbContext database, IHttpContextAcc
     }
 
     public async Task<T> WriteAsync<T>(string operation, object request, Guid? guildId, Guid? eventId,
-        bool idempotent, Func<Task<T>> action, CancellationToken cancellationToken)
+        bool idempotent, Func<Task<T>> action, CancellationToken cancellationToken) where T : notnull
     {
-        await using var transaction = await BeginAsync(cancellationToken);
+        await using var transaction = await BeginAsync(guildId ?? UserId, cancellationToken);
         var account = await database.Users.AsNoTracking().SingleOrDefaultAsync(user => user.Id == UserId, cancellationToken)
             ?? throw new BusinessException(401, "ACCOUNT_NOT_FOUND", "账号已注销");
         if (account.Status != "active") throw new BusinessException(403, "ACCOUNT_DISABLED", "账号不可用");
@@ -63,7 +64,7 @@ public sealed class BusinessOperations(YanyunDbContext database, IHttpContextAcc
         var result = await action();
         var relatedUsers = database.ChangeTracker.Entries<Assignment>().Select(entry => entry.Entity.UserId)
             .Concat(database.ChangeTracker.Entries<Membership>().Select(entry => entry.Entity.UserId))
-            .Concat(database.ChangeTracker.Entries<OutboxEvent>().SelectMany(entry => entry.Entity.RelatedUserIds))
+            .Concat(database.ChangeTracker.Entries<Notification>().SelectMany(entry => entry.Entity.RelatedUserIds))
             .Append(UserId).Distinct().ToArray();
         if (operation.StartsWith("member.role:", StringComparison.Ordinal) || operation.StartsWith("guild.transfer:", StringComparison.Ordinal) ||
             operation.StartsWith("event.patch:", StringComparison.Ordinal) || operation.StartsWith("event.cancel:", StringComparison.Ordinal) ||
@@ -78,7 +79,7 @@ public sealed class BusinessOperations(YanyunDbContext database, IHttpContextAcc
         await database.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         await transaction.DisposeAsync();
-        await publisher.FlushAsync(cancellationToken);
+        await publisher.FlushAsync();
         return result;
     }
 
@@ -141,15 +142,13 @@ public sealed class BusinessOperations(YanyunDbContext database, IHttpContextAcc
     {
         if (Context.Request.Query.Keys.Except(names, StringComparer.Ordinal).Any()) throw Invalid("包含不支持的查询参数");
     }
+    // 通知与业务数据同一事务写入；提交后由 NotificationPublisher 推送变更提示。
     public void Notify(Guid userId, Guid? guildId, Guid? eventId, string type, string title, string body,
         object target, params Guid[] related)
     {
-        database.Outbox.Add(new()
-        {
-            UserId = userId, GuildId = guildId, EventId = eventId,
-            RelatedUserIds = related.Append(userId).Append(UserId).Distinct().ToArray(),
-            PayloadJson = BusinessJson.Serialize(new { Type = type, Title = title, Body = body, Target = target })
-        });
+        database.Notifications.Add(NotificationFactory.Create(userId, guildId, eventId, type, title, body, target,
+            related.Append(UserId).ToArray()));
+        publisher.Queue(userId, "created");
     }
     public void Audit(string action, Guid target, Guid? guildId, Guid? eventId, params Guid[] related) =>
         database.Audit.Add(new() { ActorId = UserId, GuildId = guildId, EventId = eventId, TargetId = target,

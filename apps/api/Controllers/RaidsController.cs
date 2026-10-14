@@ -133,7 +133,7 @@ public sealed class RaidsController(YanyunDbContext database, BusinessOperations
                 operations.Notify(user.UserId, guildId, eventId, "raid.changed", "场次安排已变更", $"「{raid.Title}」安排已变更",
                     new { Kind = "raid_event", GuildId = guildId, EventId = eventId });
             }
-            raid.Version++; raid.ReminderVersion++; await database.SaveChangesAsync(token);
+            raid.Version++; await database.SaveChangesAsync(token);
             await cleanup.PromoteAsync(eventId, token);
             return await views.EventAsync(raid, operations.UserId, token);
         }, token));
@@ -145,7 +145,7 @@ public sealed class RaidsController(YanyunDbContext database, BusinessOperations
             await operations.MemberAsync(guildId, true, false, token);
             var raid = await database.Events.SingleOrDefaultAsync(raid => raid.Id == eventId && raid.GuildId == guildId, token) ?? throw BusinessOperations.Missing();
             BusinessOperations.Version(raid.Version, operations.HeaderVersion()); Open(raid);
-            raid.Status = "cancelled"; raid.Version++; raid.ReminderVersion++;
+            raid.Status = "cancelled"; raid.Version++;
             var users = await database.Assignments.Where(assignment => assignment.EventId == eventId).Select(assignment => assignment.UserId).ToArrayAsync(token);
             foreach (var user in users) operations.Notify(user, guildId, eventId, "raid.cancelled", "场次已取消", $"「{raid.Title}」已取消",
                 new { Kind = "raid_event", GuildId = guildId, EventId = eventId });

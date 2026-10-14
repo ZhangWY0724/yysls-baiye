@@ -57,24 +57,6 @@
           "Npgsql": "10.0.3"
         }
       },
-      "Quartz.Extensions.Hosting": {
-        "type": "Direct",
-        "requested": "[3.15.1, )",
-        "resolved": "3.15.1",
-        "contentHash": "svqLTEnVLb0VPUcNCd/khRqagwxM/yybUZ2sEOd7HFdPO+5dAOttL+ARtXSyBeaGWPWAaxY4VvU7pJTZzYhORw==",
-        "dependencies": {
-          "Quartz.Extensions.DependencyInjection": "3.15.1"
-        }
-      },
-      "Quartz.Serialization.SystemTextJson": {
-        "type": "Direct",
-        "requested": "[3.15.1, )",
-        "resolved": "3.15.1",
-        "contentHash": "K0rDV0Ds8BSEHixhiSccZ9cvfqhEiHdy6R18i1w+XMTncaMJKWs7UoefWhRS4Isfr9PPmPpcwSOSmvfnYEyOwg==",
-        "dependencies": {
-          "Quartz": "3.15.1"
-        }
-      },
       "Serilog.AspNetCore": {
         "type": "Direct",
         "requested": "[10.0.0, )",
@@ -273,19 +255,6 @@
         "type": "Transitive",
         "resolved": "10.0.3",
         "contentHash": "7nb5YzXuvWWJxB0J8DiyL3we+X4FOctZrt0fIBnucOIaIevFEEwGQVZKtiu9olXdlNAK1eNgqSral6r/jlhI4w=="
-      },
-      "Quartz": {
-        "type": "Transitive",
-        "resolved": "3.15.1",
-        "contentHash": "XIbhzUAKSm3xdl1ORLPnK7mc5XANP3cuvYQhCtuX/8888IN41e9OXJak4R9OlmAGRnyAMqHE40yojVa89NS1wg=="
-      },
-      "Quartz.Extensions.DependencyInjection": {
-        "type": "Transitive",
-        "resolved": "3.15.1",
-        "contentHash": "LinB9z54aPn49C/DGM1v3OflX2nosrEo4zNz10vfYqcCndFJ8MNU9k++Ap9T7vxeZc355WStPDggpX60TYj1Lg==",
-        "dependencies": {
-          "Quartz": "3.15.1"
-        }
       },
       "RESPite": {
         "type": "Transitive",

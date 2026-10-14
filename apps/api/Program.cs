@@ -21,7 +21,6 @@ using Yanyun.Api.Modules.Notifications;
 using Yanyun.Api.Modules.Auth;
 using Yanyun.Api.Infrastructure.Email;
 using Yanyun.Api.Modules.Business;
-using Quartz;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -100,8 +99,6 @@ builder.Services.AddScoped<BusinessOperations>();
 builder.Services.AddScoped<BusinessViews>();
 builder.Services.AddScoped<CleanupService>();
 builder.Services.AddScoped<NotificationPublisher>();
-builder.Services.AddSingleton<NotificationDispatchQueue>();
-builder.Services.AddHostedService<NotificationDispatcher>();
 builder.Services.AddSingleton<AuthRedisStore>();
 builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection("Email"));
 builder.Services.AddHttpClient<IVerificationEmailSender, ResendEmailSender>(client =>
@@ -111,22 +108,7 @@ builder.Services.AddHttpClient<IVerificationEmailSender, ResendEmailSender>(clie
 }).RemoveAllLoggers();
 if (builder.Configuration.GetValue("Scheduling:Enabled", true))
 {
-    builder.Services.AddQuartz(quartz =>
-    {
-        quartz.SchedulerName = "Yanyun.Notifications";
-        quartz.UsePersistentStore(store =>
-        {
-            store.UseProperties = true;
-            store.UsePostgres(postgresConnection);
-            store.UseSystemTextJsonSerializer();
-        });
-        var key = new JobKey("station-notifications");
-        quartz.AddJob<NotificationJob>(options => options.WithIdentity(key));
-        quartz.AddTrigger(options => options.ForJob(key).WithIdentity("station-notifications-tick")
-            .WithSimpleSchedule(schedule => schedule.WithIntervalInSeconds(10).RepeatForever()
-                .WithMisfireHandlingInstructionNowWithExistingCount()));
-    });
-    builder.Services.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
+    builder.Services.AddHostedService<ReminderService>();
 }
 builder.Services.AddSignalR().AddJsonProtocol(options =>
     options.PayloadSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower);

@@ -491,41 +491,6 @@
           "Npgsql": "10.0.3"
         }
       },
-      "Quartz": {
-        "type": "Transitive",
-        "resolved": "3.15.1",
-        "contentHash": "XIbhzUAKSm3xdl1ORLPnK7mc5XANP3cuvYQhCtuX/8888IN41e9OXJak4R9OlmAGRnyAMqHE40yojVa89NS1wg==",
-        "dependencies": {
-          "Microsoft.Extensions.Logging.Abstractions": "2.1.1"
-        }
-      },
-      "Quartz.Extensions.DependencyInjection": {
-        "type": "Transitive",
-        "resolved": "3.15.1",
-        "contentHash": "LinB9z54aPn49C/DGM1v3OflX2nosrEo4zNz10vfYqcCndFJ8MNU9k++Ap9T7vxeZc355WStPDggpX60TYj1Lg==",
-        "dependencies": {
-          "Microsoft.Extensions.Configuration.Abstractions": "9.0.0",
-          "Microsoft.Extensions.Options": "9.0.0",
-          "Quartz": "3.15.1"
-        }
-      },
-      "Quartz.Extensions.Hosting": {
-        "type": "Transitive",
-        "resolved": "3.15.1",
-        "contentHash": "svqLTEnVLb0VPUcNCd/khRqagwxM/yybUZ2sEOd7HFdPO+5dAOttL+ARtXSyBeaGWPWAaxY4VvU7pJTZzYhORw==",
-        "dependencies": {
-          "Microsoft.Extensions.Hosting.Abstractions": "9.0.0",
-          "Quartz.Extensions.DependencyInjection": "3.15.1"
-        }
-      },
-      "Quartz.Serialization.SystemTextJson": {
-        "type": "Transitive",
-        "resolved": "3.15.1",
-        "contentHash": "K0rDV0Ds8BSEHixhiSccZ9cvfqhEiHdy6R18i1w+XMTncaMJKWs7UoefWhRS4Isfr9PPmPpcwSOSmvfnYEyOwg==",
-        "dependencies": {
-          "Quartz": "3.15.1"
-        }
-      },
       "RESPite": {
         "type": "Transitive",
         "resolved": "3.4.0",
@@ -689,8 +654,6 @@
           "Microsoft.AspNetCore.OpenApi": "[10.0.12, )",
           "Microsoft.EntityFrameworkCore.Relational": "[10.0.12, )",
           "Npgsql.EntityFrameworkCore.PostgreSQL": "[10.0.3, )",
-          "Quartz.Extensions.Hosting": "[3.15.1, )",
-          "Quartz.Serialization.SystemTextJson": "[3.15.1, )",
           "Serilog.AspNetCore": "[10.0.0, )",
           "StackExchange.Redis": "[3.4.0, )"
         }

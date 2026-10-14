@@ -18,7 +18,6 @@ public sealed class YanyunDbContext(DbContextOptions<YanyunDbContext> options) :
     public DbSet<RaidEvent> Events => Set<RaidEvent>();
     public DbSet<Assignment> Assignments => Set<Assignment>();
     public DbSet<Notification> Notifications => Set<Notification>();
-    public DbSet<OutboxEvent> Outbox => Set<OutboxEvent>();
     public DbSet<IdempotencyRecord> Idempotency => Set<IdempotencyRecord>();
     public DbSet<AuditLog> Audit => Set<AuditLog>();
 

@@ -1,6 +1,6 @@
 # 燕云百业组队平台
 
-Next.js 15 / React 19 前端，ASP.NET Core 10 模块单体后端，PostgreSQL 16、Redis 7.4、Quartz 与 SignalR。业务页面已接真实接口；QQ 登录按本次决定暂停，邮件仅用于邮箱注册验证，不发送业务邮件。无附件、头像或文件存储。
+Next.js 15 / React 19 前端，ASP.NET Core 10 模块单体后端，PostgreSQL 16、Redis 7.4 与 SignalR。业务页面已接真实接口；QQ 登录按本次决定暂停，邮件仅用于邮箱注册验证，不发送业务邮件。无附件、头像或文件存储。
 
 ## 当前功能
 
@@ -43,7 +43,7 @@ Development 未配置 JWT 签名密钥时使用进程级随机密钥，重启后
 
 ## 数据库与配置
 
-服务器项目迁移已按用户确认执行：InitialFramework、PhaseOneBusiness、QuartzScheduling。启动不会自动建表。正式流派字典和系统副本模板尚待用户提供；演示数据未导入正式 schema。
+服务器项目迁移已按用户确认执行：InitialFramework、PhaseOneBusiness、QuartzScheduling；SimplifyNotifications（删除 Outbox 与 Quartz 表）待确认后执行。启动不会自动建表。正式流派字典和系统副本模板尚待用户提供；演示数据未导入正式 schema。
 
 ```powershell
 dotnet tool restore

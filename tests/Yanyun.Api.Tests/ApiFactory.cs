@@ -40,8 +40,6 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
             }));
         builder.ConfigureServices(services =>
         {
-            foreach (var descriptor in services.Where(service => service.ImplementationType == typeof(Quartz.QuartzHostedService)).ToArray())
-                services.Remove(descriptor);
             services.RemoveAll<IUserAccountStateReader>();
             services.AddSingleton<IUserAccountStateReader>(new TestAccountReader(Accounts, AccountFailures));
             services.AddControllers().AddApplicationPart(typeof(ProbeController).Assembly);

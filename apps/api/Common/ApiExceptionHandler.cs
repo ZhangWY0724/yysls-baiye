@@ -31,6 +31,14 @@ public sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) : I
                 "VALIDATION_FAILED", "字段格式不正确"), cancellationToken);
             return true;
         }
+        // 并发写入撞上唯一约束（例如同一账号同时加入两个百业）属于业务冲突，不是依赖故障。
+        if (exception is Microsoft.EntityFrameworkCore.DbUpdateException { InnerException: PostgresException { SqlState: PostgresErrorCodes.UniqueViolation } })
+        {
+            context.Response.StatusCode = 409;
+            await context.Response.WriteAsJsonAsync(ApiResponse.Failure(context,
+                "CONFLICT", "数据已被其他操作更新，请刷新后重试"), cancellationToken);
+            return true;
+        }
         if (exception is Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException)
         {
             context.Response.StatusCode = 409;
