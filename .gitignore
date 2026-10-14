@@ -27,3 +27,7 @@ claude-api.err.log
 # 批量预置账号：真实邮箱清单与生成的 SQL 不入库
 tools/gen-users/emails.txt
 tools/gen-users/*.sql
+
+# 本地辅助文件与一次性脚本
+claude-check.ps1
+apps/api/prod-init.sql
