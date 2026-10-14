@@ -53,7 +53,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       AllowedHosts: ${PUBLIC_HOST:?请填写 PUBLIC_HOST，例如 yy.example.com}
-      ConnectionStrings__Postgres: Host=postgres;Database=${POSTGRES_DB:-yanyun};Username=${POSTGRES_USER:-yanyun};Password=${POSTGRES_PASSWORD};Timeout=3;Command Timeout=5
+      ConnectionStrings__Postgres: Host=postgres;Database=${APP_DB_NAME:-yanyun_prod};Username=${POSTGRES_USER:-yanyun};Password=${POSTGRES_PASSWORD};Timeout=3;Command Timeout=5
       ConnectionStrings__Redis: redis:6379,password=${REDIS_PASSWORD}
       Auth__SigningKey: ${JWT_SIGNING_KEY:?请填写 JWT_SIGNING_KEY（至少 32 字节随机值）}
       Email__ResendApiKey: ${RESEND_API_KEY:?请填写 RESEND_API_KEY}
