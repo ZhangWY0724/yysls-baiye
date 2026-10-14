@@ -1049,10 +1049,10 @@ export function MyWeekPage({ me, unread }: { me: Me; unread: number }) {
           </strong>
         </div>
         <Link className="stat stat-link" href={raidsHref}>
-          <span>百业副本</span>
+          <span>{me.membership ? "百业副本" : "百业"}</span>
           <strong>
             <CalendarDays size={20} strokeWidth={1.75} aria-hidden />
-            查看周历
+            {me.membership ? "查看周历" : "去找百业"}
           </strong>
           <ChevronRight className="stat-arrow" size={18} strokeWidth={1.75} aria-hidden />
         </Link>

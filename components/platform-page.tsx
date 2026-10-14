@@ -340,7 +340,7 @@ function Platform() {
           <details className="user-menu">
             <summary>
               <Avatar name={me.nickname} id={me.user_id} size="sm" />
-              <span>{me.nickname}</span>
+              <span className="user-name">{me.nickname}</span>
             </summary>
             <div className="menu">
               <Link href="/settings">
@@ -408,6 +408,28 @@ function Platform() {
                 </Button>
               </div>
             )}
+            {guild && inMyGuild && (
+              <nav className="tabs guild-subnav" aria-label="百业导航">
+                {[
+                  { key: "", label: "主页" },
+                  { key: "raids", label: "周历" },
+                  { key: "members", label: "成员" },
+                  ...(guild.role !== "member" ? [{ key: "settings", label: "设置" }] : []),
+                ].map((item) => {
+                  const current = (parts[2] ?? "") === item.key;
+                  return (
+                    <Link
+                      key={item.key}
+                      className={current ? "selected" : undefined}
+                      aria-current={current ? "page" : undefined}
+                      href={`/guilds/${myGuild}${item.key ? `/${item.key}` : ""}`}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </nav>
+            )}
             <div className="page-head">
               <div>
                 <span className="kicker">{kicker}</span>
@@ -427,19 +449,18 @@ function Platform() {
             <CalendarCheck size={24} strokeWidth={1.75} aria-hidden />
             <span>我的本周</span>
           </Link>
-          <Link
-            className={parts[2] === "raids" ? "active" : undefined}
-            href={myGuild ? `/guilds/${myGuild}/raids` : "/guilds"}
-          >
-            <CalendarDays size={24} strokeWidth={1.75} aria-hidden />
-            <span>副本</span>
-          </Link>
+          {myGuild && (
+            <Link className={parts[2] === "raids" ? "active" : undefined} href={`/guilds/${myGuild}/raids`}>
+              <CalendarDays size={24} strokeWidth={1.75} aria-hidden />
+              <span>副本</span>
+            </Link>
+          )}
           <Link
             className={parts[0] === "guilds" && parts[2] !== "raids" ? "active" : undefined}
-            href="/guilds"
+            href={myGuild ? `/guilds/${myGuild}` : "/guilds"}
           >
             <Users size={24} strokeWidth={1.75} aria-hidden />
-            <span>百业</span>
+            <span>{myGuild ? "我的百业" : "百业"}</span>
           </Link>
           <Link className={path === "/notifications" ? "active" : undefined} href="/notifications">
             <Bell size={24} strokeWidth={1.75} aria-hidden />

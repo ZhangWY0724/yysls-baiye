@@ -474,7 +474,10 @@ textarea::placeholder {
   background: var(--sunk);
   border-radius: var(--r-pill);
 }
-.tabs button {
+.tabs button,
+.tabs a {
+  display: inline-flex;
+  align-items: center;
   height: 32px;
   padding: 0 14px;
   color: var(--muted);
@@ -485,14 +488,20 @@ textarea::placeholder {
   font-weight: 500;
   white-space: nowrap;
 }
-.tabs button:hover {
+.tabs button:hover,
+.tabs a:hover {
   color: var(--text);
 }
-.tabs button.selected {
+.tabs button.selected,
+.tabs a.selected {
   color: var(--text);
   background: var(--surface);
   box-shadow: 0 1px 3px rgba(60, 50, 30, 0.12);
   font-weight: 600;
+}
+
+.guild-subnav {
+  display: none;
 }
 
 /* 状态胶囊、标签、文字标识 */
@@ -1843,8 +1852,15 @@ textarea::placeholder {
     height: 56px;
     padding: 0 16px;
   }
-  .user-menu summary > span {
+  .user-menu summary {
+    padding: 0 5px;
+  }
+  .user-menu .user-name {
     display: none;
+  }
+  .guild-subnav {
+    display: inline-flex;
+    margin-bottom: 16px;
   }
   .platform-layout {
     display: block;
@@ -1957,7 +1973,8 @@ textarea::placeholder {
     bottom: 0;
     left: 0;
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
     height: calc(64px + env(safe-area-inset-bottom));
     padding-bottom: env(safe-area-inset-bottom);
     background: var(--surface);

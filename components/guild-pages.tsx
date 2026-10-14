@@ -389,6 +389,7 @@ export function GuildHome({ id, me, reload }: { id: string; me: Me; reload: Relo
               </div>
             </Card>
           )}
+          {member && <ButtonLink href="/guilds">浏览其他百业</ButtonLink>}
         </div>
       )}
     </QueryState>
