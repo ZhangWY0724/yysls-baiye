@@ -73,3 +73,11 @@ dotnet test "Yanyun.slnx" -c Release --no-restore
 测试使用独立随机 PostgreSQL schema 和 Redis 命名空间，验证码邮件为测试替身，隔离正式数据。测试 schema 保留，未自动 DROP。常规 CI 不连接本机秘密配置，跳过这些基础设施测试；CI 检查生成类型、编译、普通测试、迁移一致性和前端生产构建。
 
 运行结果与尚未完成的上线验收见 [开发进度](doc/06-后端开发进度.md)。Resend 真实测试仅确认供应商受理，不代表收件方已收到；生产部署、负载、移动端和备份恢复需另行验收。
+
+## 系统截图
+<img width="1920" height="928" alt="image" src="https://github.com/user-attachments/assets/66ab916e-a97d-4b88-a1ac-fa40b8e93c5e" />
+<img width="1920" height="928" alt="image" src="https://github.com/user-attachments/assets/decb61a2-2a12-460e-a4e5-e6766dda6937" />
+<img width="1920" height="928" alt="image" src="https://github.com/user-attachments/assets/4e1cce68-a3d0-4243-936a-cc6d92c3deba" />
+
+
+
