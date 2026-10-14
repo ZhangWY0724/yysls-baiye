@@ -1,0 +1,67 @@
+name: yanyun-backend
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-yanyun}
+      POSTGRES_USER: ${POSTGRES_USER:-yanyun}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?请填写 docker/.env 的 POSTGRES_PASSWORD}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7.4-alpine
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?请填写 docker/.env 的 REDIS_PASSWORD}
+    command:
+      - sh
+      - -c
+      - 'exec redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy noeviction --requirepass "$${REDIS_PASSWORD}"'
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", 'REDISCLI_AUTH="$${REDIS_PASSWORD}" redis-cli ping | grep -q PONG']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    profiles: ["app"]
+    build:
+      context: ..
+      dockerfile: docker/api.Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      AllowedHosts: localhost;127.0.0.1
+      ConnectionStrings__Postgres: Host=postgres;Database=${POSTGRES_DB:-yanyun};Username=${POSTGRES_USER:-yanyun};Password=${POSTGRES_PASSWORD};Timeout=3;Command Timeout=5
+      ConnectionStrings__Redis: redis:6379,password=${REDIS_PASSWORD}
+      Auth__SigningKey: ${JWT_SIGNING_KEY:-}
+      Email__ResendApiKey: ${RESEND_API_KEY:-}
+      Email__From: ${EMAIL_FROM:-}
+      Cors__AllowedOrigins__0: ${PUBLIC_ORIGIN:-http://localhost:3000}
+      Redis__KeyPrefix: "yanyun:local-compose:"
+      DataProtection__KeysPath: /app/keys
+    ports:
+      - "127.0.0.1:5080:8080"
+    volumes:
+      - data-protection:/app/keys
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  postgres-data:
+  redis-data:
+  data-protection:

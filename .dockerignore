@@ -1,0 +1,15 @@
+node_modules
+.next
+.next-dev
+**/bin
+**/obj
+artifacts
+TestResults
+.git
+.env
+.env.*
+**/.env
+**/.env.*
+**/appsettings.Local.json
+**/data-protection
+doc

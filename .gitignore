@@ -1,0 +1,22 @@
+# 前端生成物
+node_modules/
+.next/
+.next-dev/
+*.tsbuildinfo
+
+# 后端生成物
+**/bin/
+**/obj/
+TestResults/
+artifacts/
+.vs/
+
+# 本地配置和密钥
+.env
+.env.*
+!.env.example
+**/appsettings.Local.json
+*.user
+*.suo
+claude-check.log
+.idea/

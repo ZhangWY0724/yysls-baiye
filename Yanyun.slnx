@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/apps/">
+    <Project Path="apps/api/Yanyun.Api.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Yanyun.Api.Tests/Yanyun.Api.Tests.csproj" />
+  </Folder>
+</Solution>

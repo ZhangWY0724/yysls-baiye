@@ -1,0 +1,43 @@
+name: Backend
+
+on:
+  pull_request:
+    paths: ["apps/api/**", "tests/Yanyun.Api.Tests/**", "app/**", "components/**", "lib/**", "package*.json", "next.config.mjs", "global.json", "Directory.Build.props", "Yanyun.slnx", ".config/**", ".github/workflows/backend.yml"]
+  push:
+    paths: ["apps/api/**", "tests/Yanyun.Api.Tests/**", "app/**", "components/**", "lib/**", "package*.json", "next.config.mjs", "global.json", "Directory.Build.props", "Yanyun.slnx", ".config/**", ".github/workflows/backend.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      - run: dotnet restore "Yanyun.slnx" --locked-mode
+      - run: dotnet build "Yanyun.slnx" -c Release --no-restore
+      - run: dotnet test "Yanyun.slnx" -c Release --no-build --no-restore
+      - run: dotnet tool restore
+      - run: dotnet ef migrations has-pending-model-changes --project "apps/api/Yanyun.Api.csproj" --no-build --configuration Release
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Verify generated API contract
+        shell: bash
+        run: |
+          ASPNETCORE_ENVIRONMENT=Development Scheduling__Enabled=false dotnet apps/api/bin/Release/net10.0/Yanyun.Api.dll --contentRoot "$PWD/apps/api" --urls http://localhost:5080 > api.log 2>&1 &
+          api_pid=$!
+          trap 'kill "$api_pid"' EXIT
+          for attempt in {1..30}; do
+            if curl --fail --silent http://localhost:5080/openapi/v1.json > openapi.json; then break; fi
+            sleep 1
+          done
+          npx openapi-typescript openapi.json -o lib/api.generated.ts
+          git diff --exit-code -- lib/api.generated.ts
+      - run: npm run typecheck
+      - run: npm run build
