@@ -11671,6 +11671,21 @@ export interface components {
             /** Format: int32 */
             unread_count: number;
         };
+        WeekSignupUserResponse: {
+            /** Format: uuid */
+            user_id: string;
+            nickname: string;
+            waitlist_only: boolean;
+        };
+        WeekSignupsResponse: {
+            week_key: string;
+            /** Format: date-time */
+            week_start: string;
+            /** Format: date-time */
+            week_end: string;
+            signed: components["schemas"]["WeekSignupUserResponse"][];
+            unsigned: components["schemas"]["WeekSignupUserResponse"][];
+        };
         PublicMemberResponse: {
             /** Format: uuid */
             user_id: string;

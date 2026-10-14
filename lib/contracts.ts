@@ -23,6 +23,7 @@ export type Template = Schema["TemplateResponse"];
 export type Assignment = Schema["AssignmentResponse"];
 export type Raid = Schema["EventResponse"];
 export type RaidWeek = Schema["EventsWeekResponse"];
+export type WeekSignups = Schema["WeekSignupsResponse"];
 export type MyWeek = Schema["MyWeekResponse"];
 export type Notice = Schema["NotificationResponse"];
 export type NoticePage = Schema["CursorResponseOfNotificationResponse"];

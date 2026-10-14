@@ -59,6 +59,24 @@ public sealed class DiscoveryController(YanyunDbContext database, BusinessOperat
             profile.Id, profile.UserId, profile.Name, profile.Server, profile.Power, profile.Styles,
             System.Text.Json.JsonSerializer.Deserialize<OnlineSlot[]>(profile.OnlineSlotsJson, BusinessJson.Options)!, profile.Bio))]));
     }
+    // 本周报名情况：按账号统计，本周任一已发布场次有正式或候补排班即算已报名；仅有候补的账号带 WaitlistOnly 标记。
+    [HttpGet("guilds/{guildId:guid}/week-signups")]
+    public async Task<ApiResponse<WeekSignupsResponse>> WeekSignups(Guid guildId, CancellationToken token, string? week = null)
+    {
+        operations.RejectUnknownQuery("week"); await operations.MemberAsync(guildId, false, false, token);
+        var range = BusinessOperations.Week(week);
+        var members = await (from member in database.Memberships join user in database.Users on member.UserId equals user.Id
+            where member.GuildId == guildId orderby member.JoinedAt, member.Id select new { member.UserId, user.Nickname }).ToListAsync(token);
+        var rows = await (from assignment in database.Assignments join raid in database.Events on assignment.EventId equals raid.Id
+            where raid.GuildId == guildId && raid.Status == "published" && raid.StartsAt >= range.Start && raid.StartsAt < range.End
+            select new { assignment.UserId, assignment.Status }).ToListAsync(token);
+        var hasConfirmed = rows.GroupBy(row => row.UserId).ToDictionary(group => group.Key, group => group.Any(row => row.Status == "confirmed"));
+        var signed = members.Where(member => hasConfirmed.ContainsKey(member.UserId))
+            .Select(member => new WeekSignupUserResponse(member.UserId, member.Nickname, !hasConfirmed[member.UserId])).ToArray();
+        var unsigned = members.Where(member => !hasConfirmed.ContainsKey(member.UserId))
+            .Select(member => new WeekSignupUserResponse(member.UserId, member.Nickname, false)).ToArray();
+        return ApiResponse.Success(new WeekSignupsResponse(range.Key, range.Start, range.End, signed, unsigned));
+    }
     [HttpGet("guilds/{guildId:guid}/participation")]
     public async Task<ApiResponse<ParticipationResponse>> Participation(Guid guildId, CancellationToken token, int page = 1,
         [FromQuery(Name = "page_size")] int pageSize = 20, [FromQuery(Name = "unassigned_only")] bool unassignedOnly = false)

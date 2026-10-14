@@ -11,6 +11,7 @@ import {
   Plus,
   Send,
   UserPlus,
+  Users,
   Leaf,
   Shield,
   Sword,
@@ -18,7 +19,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { api, idempotency } from "@/lib/api";
-import { Assignment, Me, Member, MyWeek, Page, Profile, Raid, RaidWeek, Template } from "@/lib/contracts";
+import { Assignment, Me, Member, MyWeek, Page, Profile, Raid, RaidWeek, Template, WeekSignups } from "@/lib/contracts";
 import {
   canManage,
   Card,
@@ -183,6 +184,7 @@ export function RaidsPage({ id, me, eventId }: { id: string; me: Me; eventId?: s
   const [create, setCreate] = useState(false);
   const [createStart, setCreateStart] = useState<string>();
   const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [signupsOpen, setSignupsOpen] = useState(false);
   const [lastEventId, setLastEventId] = useState(eventId);
   if (eventId !== lastEventId) {
     setLastEventId(eventId);
@@ -190,6 +192,7 @@ export function RaidsPage({ id, me, eventId }: { id: string; me: Me; eventId?: s
   }
   const week = useQuery<RaidWeek>(`/guilds/${id}/events?week=${weekKey(offset)}`);
   const templates = useQuery<Page<Template>>(create ? `/guilds/${id}/dungeon-templates?page=1&page_size=100` : null);
+  const signups = useQuery<WeekSignups>(signupsOpen ? `/guilds/${id}/week-signups?week=${weekKey(offset)}` : null);
   const manage = canManage(me, id);
   const action = useAction(week.reload);
   const today = beijingIso(Date.now()).slice(0, 10);
@@ -215,7 +218,12 @@ export function RaidsPage({ id, me, eventId }: { id: string; me: Me; eventId?: s
         </PageActions>
       )}
       <div className="toolbar">
-        <WeekSwitcher offset={offset} setOffset={setOffset} range={range} />
+        <div className="toolbar">
+          <WeekSwitcher offset={offset} setOffset={setOffset} range={range} />
+          <Button icon={Users} onClick={() => setSignupsOpen(true)}>
+            {offset === 0 ? "本周报名情况" : "该周报名情况"}
+          </Button>
+        </div>
         <span className="toolbar-hint">
           <Clock3 size={14} strokeWidth={1.75} aria-hidden />
           北京时间 · 自然周
@@ -294,6 +302,56 @@ export function RaidsPage({ id, me, eventId }: { id: string; me: Me; eventId?: s
         <Drawer label="副本模板" close={() => setTemplatesOpen(false)}>
           <TemplatesPanel id={id} />
         </Drawer>
+      )}
+      {signupsOpen && (
+        <Modal title={offset === 0 ? "本周报名情况" : "该周报名情况"} close={() => setSignupsOpen(false)}>
+          <QueryState {...signups} retry={signups.reload}>
+            {signups.data && (
+              <div className="stack">
+                <p className="form-note">{range} · 按账号统计，候补也算已报名</p>
+                <section className="panel-section">
+                  <h3>
+                    已报名<small> {signups.data.signed.length} 人</small>
+                  </h3>
+                  {signups.data.signed.length ? (
+                    <div className="member-grid">
+                      {signups.data.signed.map((item) => (
+                        <div className="member-chip" key={item.user_id}>
+                          <Avatar name={item.nickname} id={item.user_id} size="sm" />
+                          <div>
+                            <strong>{item.nickname}</strong>
+                          </div>
+                          {item.waitlist_only && <StatusPill tone="warn">候补</StatusPill>}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="lane-empty">本周还没有人报名</p>
+                  )}
+                </section>
+                <section className="drawer-section">
+                  <h3>
+                    未报名<small> {signups.data.unsigned.length} 人</small>
+                  </h3>
+                  {signups.data.unsigned.length ? (
+                    <div className="member-grid">
+                      {signups.data.unsigned.map((item) => (
+                        <div className="member-chip" key={item.user_id}>
+                          <Avatar name={item.nickname} id={item.user_id} size="sm" />
+                          <div>
+                            <strong>{item.nickname}</strong>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="lane-empty">全员都已报名</p>
+                  )}
+                </section>
+              </div>
+            )}
+          </QueryState>
+        </Modal>
       )}
       {selected && (
         <Drawer

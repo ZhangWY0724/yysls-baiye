@@ -18,6 +18,9 @@ public sealed record GuildCreatedResponse(Guid Id, string Name, string Server, s
     bool Recruiting, int MemberCount, long Version, MembershipResponse OwnerMembership)
     : GuildResponse(Id, Name, Server, Intro, RecruitRequirements, Recruiting, MemberCount, Version);
 public sealed record RecentEventResponse(Guid Id, string Title, DateTimeOffset StartsAt, DateTimeOffset EndsAt);
+public sealed record WeekSignupUserResponse(Guid UserId, string Nickname, bool WaitlistOnly);
+public sealed record WeekSignupsResponse(string WeekKey, DateTimeOffset WeekStart, DateTimeOffset WeekEnd,
+    WeekSignupUserResponse[] Signed, WeekSignupUserResponse[] Unsigned);
 public sealed record PublicMemberResponse(Guid UserId, string Nickname, string Role, DateTimeOffset JoinedAt);
 public sealed record GuildDetailResponse(Guid Id, string Name, string Server, string Intro, string RecruitRequirements,
     bool Recruiting, int MemberCount, long Version, PublicMemberResponse[] PublicMembers,

@@ -12,7 +12,7 @@
   --line: #e7e2d6;
   --line-strong: #d6cfbf;
   --text: #2a2723;
-  --muted: #7c766a;
+  --muted: #6f695e;
   --accent: #2f5d62;
   --accent-hover: #264d51;
   --accent-soft: #e3edec;
@@ -31,8 +31,8 @@
 
   --font-sans: -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
   --font-serif: "Noto Serif SC", "Source Han Serif SC", "Songti SC", "STSong", serif;
-  --text-xs: 12px;
-  --text-sm: 13px;
+  --text-xs: 13px;
+  --text-sm: 14px;
   --text-md: 15px;
   --text-lg: 16px;
   --text-xl: 22px;
