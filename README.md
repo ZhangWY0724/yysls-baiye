@@ -43,7 +43,7 @@ Development 未配置 JWT 签名密钥时使用进程级随机密钥，重启后
 
 ## 数据库与配置
 
-服务器项目迁移已按用户确认执行：InitialFramework、PhaseOneBusiness、QuartzScheduling；SimplifyNotifications（删除 Outbox 与 Quartz 表）待确认后执行。启动不会自动建表。正式流派字典和系统副本模板尚待用户提供；演示数据未导入正式 schema。
+服务器项目迁移已按用户确认执行：InitialFramework、PhaseOneBusiness、QuartzScheduling、SimplifyNotifications（2026-10-14，删除 Outbox 与 Quartz 表）。启动不会自动建表。正式流派字典和系统副本模板尚待用户提供；演示数据未导入正式 schema。
 
 ```powershell
 dotnet tool restore
