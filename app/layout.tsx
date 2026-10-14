@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+// 标题衬线体随应用自托管（按 unicode-range 分片按需加载），不依赖国内无法访问的 Google Fonts。
+import "@fontsource/noto-serif-sc/600.css";
 import "./globals.css";
 import RouteShell from "@/components/route-shell";
 

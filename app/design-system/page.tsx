@@ -1,91 +1,229 @@
 "use client";
 
 import { useState } from "react";
+import { Bell, CalendarDays, Check, Pencil, Plus, Trash2, Users, X } from "lucide-react";
+import { Card } from "@/components/business-ui";
 import {
-  Bell, CalendarDays, Check, ChevronRight, Clock3, Copy, HeartPulse,
-  LockKeyhole, Search, Settings2, Shield, Sparkles, Star, Swords,
-  TriangleAlert, UserRound, X,
-} from "lucide-react";
+  Avatar,
+  Button,
+  ConfirmProvider,
+  EmptyState,
+  Field,
+  IconButton,
+  Pager,
+  Skeleton,
+  StatusPill,
+  Switch,
+  Tabs,
+  useConfirm,
+} from "@/components/ui";
 
-const roles = [
-  { label: "承伤", icon: Shield, tone: "role-tank" },
-  { label: "奶妈", icon: HeartPulse, tone: "role-healer" },
-  { label: "输出", icon: Swords, tone: "role-dps" },
+/* 组件规范页：直接渲染业务页面使用的同一批组件，规范与实现不会再分叉。 */
+
+const tokens = [
+  ["--bg", "页面背景"],
+  ["--surface", "卡片、抽屉"],
+  ["--sunk", "泳道、分段控件底"],
+  ["--line", "边框、分割线"],
+  ["--text", "正文"],
+  ["--muted", "次要文字"],
+  ["--accent", "主色：青黛"],
+  ["--accent-soft", "主色浅底"],
+  ["--ok", "满员、成功"],
+  ["--warn", "缺人、待处理"],
+  ["--bad", "缺承伤/奶妈、危险操作"],
 ];
 
-const participants = [
-  { name: "玄山", power: 7210, schools: "裂石钧", position: "承伤" },
-  { name: "青禾", power: 6650, schools: "牵丝霖", position: "奶妈" },
-  { name: "鹿鸣", power: 6890, schools: "牵丝霖、牵丝霜", position: "奶妈" },
-  { name: "云归", power: 7042, schools: "鸣金虹", position: "输出" },
-  { name: "砚秋", power: 6920, schools: "鸣金影", position: "输出" },
-  { name: "昭月", power: 7156, schools: "破竹风", position: "输出" },
-  { name: "舟遥", power: 6730, schools: "牵丝霜", position: "输出" },
-  { name: "听雨", power: 6988, schools: "鸣金虹、鸣金影", position: "输出" },
-];
-const weekDays = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
-const weekEvents = [
-  { id: 1, day: 0, date: "10月12日", time: "20:00", name: "无名剑 · 试炼场" },
-  { id: 2, day: 2, date: "10月14日", time: "20:30", name: "无名剑 · 试炼场" },
-  { id: 3, day: 4, date: "10月16日", time: "21:00", name: "无名剑 · 试炼场" },
-  { id: 4, day: 5, date: "10月17日", time: "19:30", name: "无名剑 · 试炼场" },
-  { id: 5, day: 5, date: "10月17日", time: "21:30", name: "无名剑 · 试炼场" },
-  { id: 6, day: 6, date: "10月18日", time: "20:00", name: "无名剑 · 试炼场" },
-];
+function ConfirmDemo() {
+  const confirm = useConfirm();
+  const [result, setResult] = useState("");
+  return (
+    <div className="row-wrap">
+      <Button
+        variant="danger-ghost"
+        icon={Trash2}
+        onClick={async () =>
+          setResult(
+            (await confirm({
+              title: "移出成员",
+              body: "移出后将删除该成员在本百业的全部记录。",
+              confirmLabel: "移出",
+              danger: true,
+            }))
+              ? "已确认"
+              : "已取消",
+          )
+        }
+      >
+        危险操作确认
+      </Button>
+      <Button
+        variant="danger-ghost"
+        onClick={async () =>
+          setResult(
+            (await confirm({
+              title: "永久解散百业",
+              body: "输入百业名称后才能确认。",
+              confirmLabel: "永久解散",
+              danger: true,
+              typeToConfirm: "青山",
+            }))
+              ? "已确认"
+              : "已取消",
+          )
+        }
+      >
+        输入名称确认
+      </Button>
+      {result && <span className="section-desc">结果：{result}</span>}
+    </div>
+  );
+}
 
 export default function DesignSystemPage() {
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState(weekEvents[0]);
-  const [saved, setSaved] = useState(false);
-
+  const [tab, setTab] = useState<"a" | "b" | "c">("a");
+  const [page, setPage] = useState(2);
   return (
-    <main className="ds-page">
-      <header className="topbar ds-width">
-        <div className="brand"><span className="brand-mark">燕</span><span>百业组队</span></div>
-        <div className="topbar-actions"><button className="icon-button" aria-label="通知"><Bell size={19} /></button><button className="avatar" aria-label="个人资料">云</button></div>
-      </header>
+    <ConfirmProvider>
+      <main className="gallery">
+        <header className="page-head">
+          <div>
+            <span className="kicker">燕云百业 · 设计规范</span>
+            <h1>组件与令牌</h1>
+          </div>
+        </header>
 
-      <section className="hero ds-width">
-        <div className="eyebrow"><Sparkles size={15} /> 视觉标准 · v0.1</div>
-        <h1>让排班信息，<em>有秩序地流动。</em></h1>
-        <p>这是一页可交互的前端基准。颜色、间距、圆角、状态和动效都从这里开始，后续页面只复用规则。</p>
-        <div className="hero-actions"><button className="button button-primary" onClick={() => setDrawerOpen(true)}>打开场次抽屉 <ChevronRight size={17} /></button><button className="button button-secondary" onClick={() => setSaved(!saved)}>{saved ? <Check size={17} /> : <Star size={17} />} {saved ? "已设为默认" : "设为默认角色"}</button></div>
-      </section>
+        <Card title="颜色令牌">
+          <div className="swatch-grid">
+            {tokens.map(([token, label]) => (
+              <div className="swatch" key={token}>
+                <span style={{ background: `var(${token})` }} />
+                <strong>{token}</strong>
+                <small>{label}</small>
+              </div>
+            ))}
+          </div>
+        </Card>
 
-      <div className="ds-width content-grid">
-        <section className="panel token-panel"><div className="section-heading"><div><span className="kicker">01 / Tokens</span><h2>颜色与状态</h2></div><Settings2 size={20} className="muted-icon" /></div><div className="swatches">{[["--accent", "青黛主色"], ["--accent-soft", "主色浅底"], ["--ok", "完成"], ["--warn", "候补"], ["--bad", "冲突"]].map(([token, label]) => <div className="swatch" key={token}><span style={{ background: `var(${token})` }} /><div><strong>{label}</strong><small>{token}</small></div></div>)}</div><div className="state-row"><span className="status status-ok"><Check size={14} /> 已满员</span><span className="status status-warn"><Clock3 size={14} /> 候补中</span><span className="status status-bad"><TriangleAlert size={14} /> 时间冲突</span></div></section>
+        <Card title="字体与字号">
+          <div className="type-scale">
+            <p className="type-serif" style={{ fontSize: 28 }}>页面主标题 28 · 衬线</p>
+            <p className="type-serif" style={{ fontSize: 22 }}>页面标题 22 · 衬线</p>
+            <p style={{ fontSize: 16, fontWeight: 600 }}>卡片标题 16 · 无衬线 600</p>
+            <p style={{ fontSize: 15 }}>表单与长文 15</p>
+            <p style={{ fontSize: 13 }}>正文与列表 13</p>
+            <p style={{ fontSize: 12, color: "var(--muted)" }}>辅助信息与状态 12（最小字号）</p>
+          </div>
+        </Card>
 
-        <section className="panel component-panel"><div className="section-heading"><div><span className="kicker">02 / Components</span><h2>操作反馈</h2></div><Copy size={20} className="muted-icon" /></div><div className="button-row"><button className="button button-primary">报名这场 <ChevronRight size={16} /></button><button className="button button-secondary">查看详情</button><button className="button button-danger">取消报名</button></div><div className="field-row"><label className="field"><span>搜索玩家</span><div className="input-wrap"><Search size={17} /><input placeholder="角色名或流派" /></div></label><label className="field"><span>场次状态</span><select defaultValue="all"><option value="all">全部状态</option><option>缺人</option><option>已满员</option></select></label></div></section>
+        <Card title="按钮">
+          <div className="row-wrap">
+            <Button variant="primary" icon={Plus}>主要</Button>
+            <Button>次要</Button>
+            <Button variant="ghost">幽灵</Button>
+            <Button variant="danger">危险</Button>
+            <Button variant="danger-ghost" icon={Trash2}>危险弱化</Button>
+            <Button variant="primary" disabled>不可用</Button>
+          </div>
+          <div className="row-wrap">
+            <Button size="sm" variant="primary">小号主要</Button>
+            <Button size="sm">小号次要</Button>
+            <Button size="sm" variant="ghost" icon={Pencil}>编辑</Button>
+            <Button size="sm" variant="danger-ghost">移出</Button>
+            <IconButton label="标为已读" icon={Check} />
+            <IconButton label="关闭" icon={X} size="sm" />
+            <IconButton label="移除" icon={X} size="sm" tone="danger" />
+          </div>
+          <p className="section-desc">每个区域最多一个主要按钮；行内操作用小号幽灵按钮；危险操作先弹确认框，确认框里才用实底危险按钮。</p>
+        </Card>
 
-        <section className="panel schedule-panel"><div className="section-heading"><div><span className="kicker">03 / Schedule Card</span><h2>副本场次</h2></div><span className="status status-warn">缺 2 人</span></div><div className="event-card"><div className="event-top"><div><span className="event-time">今晚 20:00</span><h3>无名剑 · 试炼场</h3></div><span className="event-count">8 / 10</span></div><div className="role-list">{roles.map(({ label, icon: Icon, tone }, index) => <div className="role-line" key={label}><span className={`role-label ${tone}`}><Icon size={15} /> {label}</span><div className="slot-stack">{Array.from({ length: index === 0 ? 1 : index === 1 ? 2 : 5 }).map((_, i) => <span className="slot-avatar" key={i}>{["玄", "青", "鹿", "云", "砚", "昭", "舟"][i]}</span>)}{index === 2 && <><span className="slot-empty" /><span className="slot-empty" /></>}</div></div>)}</div><div className="event-foot"><span>自然周 · 北京时间</span><button className="text-button" onClick={() => setDrawerOpen(true)}>场次详情 <ChevronRight size={15} /></button></div></div></section>
+        <Card title="表单">
+          <div className="form">
+            <div className="form-row">
+              <Field label="百业名称" hint="2–40 个字">
+                <input placeholder="例如：青山" />
+              </Field>
+              <Field label="区服">
+                <select defaultValue="official">
+                  <option value="official">官服</option>
+                  <option value="channel">渠道服</option>
+                </select>
+              </Field>
+            </div>
+            <Field label="简介">
+              <textarea placeholder="介绍一下百业" />
+            </Field>
+            <div className="row-wrap">
+              <Switch label="开放招募" defaultChecked />
+              <label className="check">
+                <input type="checkbox" defaultChecked />
+                多选项
+              </label>
+            </div>
+          </div>
+        </Card>
 
-        <section className="panel role-panel"><div className="section-heading"><div><span className="kicker">04 / Character</span><h2>我的角色</h2></div><UserRound size={20} className="muted-icon" /></div><div className="character-card"><div className="character-avatar">云</div><div className="character-info"><div className="character-title"><strong>云中鹿</strong><span className="default-tag"><Star size={12} /> 默认</span></div><span>鹅力 6842 · 流派：鸣金虹、牵丝霜</span><small>周二、周四 · 20:00 后在线</small></div><button className="icon-button" aria-label="角色设置"><Settings2 size={18} /></button></div></section>
-      </div>
+        <Card title="状态、标识与分段">
+          <div className="row-wrap">
+            <StatusPill tone="ok">满员</StatusPill>
+            <StatusPill tone="warn">缺 2 人</StatusPill>
+            <StatusPill tone="bad">缺承伤</StatusPill>
+            <StatusPill tone="accent">已发布</StatusPill>
+            <StatusPill tone="muted">已结束</StatusPill>
+          </div>
+          <div className="row-wrap">
+            {["玄山", "青禾", "鹿鸣", "云归", "砚秋", "昭月", "舟遥"].map((name) => (
+              <Avatar key={name} name={name} />
+            ))}
+            <Avatar name="青山百业" size="lg" square />
+          </div>
+          <Tabs
+            label="示例"
+            items={[
+              ["a", "成员"],
+              ["b", "审批申请"],
+              ["c", "参与情况"],
+            ]}
+            value={tab}
+            onChange={setTab}
+          />
+        </Card>
 
-      <section className="panel week-panel ds-width" aria-label="周日历泳道示例">
-        <div className="section-heading"><div><span className="kicker">05 / Week Calendar</span><h2>副本周日历</h2><p className="week-caption">2026.10.12 — 10.18 · 北京时间 · 示例数据</p></div><CalendarDays size={22} className="muted-icon" /></div>
-        <div className="week-scroll"><div className="week-board">
-          {weekDays.map((day, index) => <section className="day-lane" key={day} aria-label={day}>
-            <div className="day-heading"><strong>{day}</strong><span>10 / {12 + index}</span></div>
-            <div className="day-events">{weekEvents.filter(event => event.day === index).map(event => <button className="week-event" key={event.id} onClick={() => { setSelectedEvent(event); setDrawerOpen(true); }} aria-label={`${event.date} ${event.time} ${event.name}场次详情`}>
-              <span className="week-event-time"><Clock3 size={13} />{event.time}</span><strong>{event.name}</strong><span className="status status-warn">缺 2 输出</span><span className="week-event-count">8 / 10 人 <ChevronRight size={14} /></span>
-            </button>)}{!weekEvents.some(event => event.day === index) && <p className="lane-empty">这天没有安排副本</p>}</div>
-          </section>)}
-        </div></div>
-        <p className="week-caption">点击场次查看角色详情；桌面七天等宽排列，移动端按日期纵向排列。</p>
-      </section>
+        <Card title="空状态、加载与分页">
+          <div className="split split-even">
+            <EmptyState icon={CalendarDays} title="这周还没有安排" action={<Button>浏览副本</Button>}>
+              去看看有哪些副本在招人。
+            </EmptyState>
+            <div className="stack">
+              <Skeleton />
+              <EmptyState compact icon={Bell}>暂无通知</EmptyState>
+            </div>
+          </div>
+          <Pager page={page} total={86} setPage={setPage} />
+        </Card>
 
-      <section className="motion-strip ds-width"><div><span className="kicker">06 / Motion</span><h2>动效只回答一个问题：发生了什么？</h2><p>悬停、打开、成功和冲突都有明确反馈；页面进入不做装饰性动画。</p></div><div className="motion-demo"><span className="pulse-dot" /><span>同步中</span><span className="motion-line" /></div></section>
+        <Card title="确认对话框">
+          <ConfirmDemo />
+        </Card>
 
-      <footer className="ds-width footer-note"><LockKeyhole size={14} /> 非官方玩家工具，与游戏运营方无关</footer>
-
-      {drawerOpen && <div className="drawer-layer" role="presentation" onClick={() => setDrawerOpen(false)}><aside className="drawer" role="dialog" aria-modal="true" aria-label="场次详情" onClick={(event) => event.stopPropagation()}>
-        <div className="drawer-header"><div><span className="kicker">{selectedEvent.date} · {selectedEvent.time}</span><h2>{selectedEvent.name}</h2></div><button className="icon-button" onClick={() => setDrawerOpen(false)} aria-label="关闭"><X size={19} /></button></div>
-        <div className="drawer-status"><span className="status status-warn">缺 2 输出</span><span>北京时间 · 预计 90 分钟</span></div>
-        <div className="drawer-section"><h3>已参加角色 <span className="participant-total">8 / 10 人</span></h3><div className="participant-list">{participants.map(person => <div className="participant" key={person.name}><span className="character-avatar small">{person.name[0]}</span><div className="participant-info"><div><strong>{person.name}</strong><span className={roles.find(role => role.label === person.position)?.tone}>{person.position}</span></div><small>鹅力 {person.power}</small><p>流派：{person.schools}</p></div></div>)}</div></div>
-        <div className="drawer-section"><h3>队伍需求</h3><div className="drawer-roles">{roles.map(({ label, icon: Icon, tone }, i) => <div className={`drawer-role ${tone}`} key={label}><Icon size={18} /><span>{label}</span><strong>{i === 0 ? "1 / 1" : i === 1 ? "2 / 2" : "5 / 7"}</strong><small>{i === 2 ? "还缺 2 人" : "已满"}</small></div>)}</div></div>
-        <div className="drawer-section"><h3>选择角色后报名</h3><label className="field"><span>本场角色</span><select defaultValue="云中鹿"><option value="云中鹿">云中鹿 · 默认 · 鹅力 6842 · 鸣金虹、牵丝霜</option><option value="云外山">云外山 · 鹅力 6520 · 鸣金影</option></select></label><label className="field signup-position"><span>本场定位</span><select defaultValue="输出"><option>输出</option><option>奶妈</option><option>承伤</option></select></label><p className="signup-note">报名即确认占位；定位已满时加入候补。此处为交互样式示例。</p><button className="button button-primary full-button" onClick={() => setDrawerOpen(false)}>报名这场 <Check size={17} /></button></div>
-      </aside></div>}
-    </main>
+        <Card title="列表行">
+          <div className="list">
+            <div className="list-row">
+              <Avatar name="云归" />
+              <span className="list-main">
+                <strong>
+                  云归<StatusPill tone="muted">管理员</StatusPill>
+                </strong>
+                <small>鸣金虹 / 鸣金影</small>
+              </span>
+              <div className="list-actions">
+                <Button size="sm" variant="ghost" icon={Users}>设为管理员</Button>
+                <Button size="sm" variant="danger-ghost">移出</Button>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </main>
+    </ConfirmProvider>
   );
 }

@@ -5,8 +5,10 @@ namespace Yanyun.Api.Modules.Business;
 
 public sealed class CleanupService(YanyunDbContext database, NotificationPublisher publisher)
 {
-    public async Task GuildAsync(Guid guildId, CancellationToken token)
+    // 解散百业：硬删除全部关联数据后，给除操作人以外的成员留一条不挂靠百业的通知，百业删除后仍可见。
+    public async Task GuildAsync(Guid guildId, Guid initiatedBy, CancellationToken token)
     {
+        var name = await database.Guilds.Where(guild => guild.Id == guildId).Select(guild => guild.Name).SingleAsync(token);
         var recipients = await database.Memberships.Where(member => member.GuildId == guildId).Select(member => member.UserId).ToArrayAsync(token);
         foreach (var user in recipients) publisher.Queue(user, "deleted");
         var events = await database.Events.Where(raid => raid.GuildId == guildId).Select(raid => raid.Id).ToArrayAsync(token);
@@ -20,6 +22,21 @@ public sealed class CleanupService(YanyunDbContext database, NotificationPublish
         await database.Memberships.Where(member => member.GuildId == guildId).ExecuteDeleteAsync(token);
         await database.Guilds.Where(guild => guild.Id == guildId).ExecuteDeleteAsync(token);
         database.ChangeTracker.Clear();
+        foreach (var user in recipients.Where(user => user != initiatedBy))
+        {
+            database.Notifications.Add(NotificationFactory.Create(user, null, null, "guild.dissolved", "百业已解散",
+                $"「{name}」已解散，你在该百业的排班和记录已删除", new { Kind = "guild" }));
+            publisher.Queue(user, "created");
+        }
+        // 立即保存：注销等后续清理会清空变更跟踪，未保存的通知会丢失。
+        await database.SaveChangesAsync(token);
+    }
+    // 被移出的成员单独留一条本人通知，同样不挂靠百业，避免随百业后续清理被删除。
+    public void NotifyRemoved(Guid userId, string guildName)
+    {
+        database.Notifications.Add(NotificationFactory.Create(userId, null, null, "member.removed", "你已被移出百业",
+            $"你已被移出「{guildName}」，你在该百业的排班和记录已删除", new { Kind = "guild" }));
+        publisher.Queue(userId, "created");
     }
     public async Task MemberAsync(Membership member, CancellationToken token)
     {
@@ -48,7 +65,7 @@ public sealed class CleanupService(YanyunDbContext database, NotificationPublish
     public async Task AccountAsync(Guid userId, CancellationToken token)
     {
         var owned = await database.Guilds.Where(guild => guild.OwnerUserId == userId).Select(guild => guild.Id).ToArrayAsync(token);
-        foreach (var guildId in owned) await GuildAsync(guildId, token);
+        foreach (var guildId in owned) await GuildAsync(guildId, userId, token);
         var member = await database.Memberships.SingleOrDefaultAsync(member => member.UserId == userId, token);
         if (member is not null) await MemberAsync(member, token);
         var invitations = await database.Invitations.Where(invitation => invitation.CreatedBy == userId || invitation.TargetUserId == userId).Select(invitation => invitation.Id).ToArrayAsync(token);

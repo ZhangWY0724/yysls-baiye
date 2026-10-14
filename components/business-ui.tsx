@@ -9,20 +9,25 @@ import {
   useRef,
   useState,
 } from "react";
+import { createPortal } from "react-dom";
+import { X } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import type { Me, ProfileOptions } from "@/lib/contracts";
-import { createPortal } from "react-dom";
+import { Button, Field, IconButton, Skeleton, type Tone } from "./ui";
 
-function ActionFeedback({ error, message, dismiss }: { error: string; message: string; dismiss: () => void }) {
+/* 数据查询、写操作反馈和业务字典。展示组件见 ui.tsx。 */
+
+function Toast({ error, message, dismiss }: { error: string; message: string; dismiss: () => void }) {
   if ((!error && !message) || typeof document === "undefined") return null;
   return createPortal(
-    <div className={`action-feedback ${error ? "action-feedback-error" : "action-feedback-success"}`}>
+    <div className={`toast${error ? " toast-error" : ""}`}>
       <div role={error ? "alert" : "status"}>
         <strong>{error ? "操作未完成" : "操作成功"}</strong>
         <p>{error || message}</p>
       </div>
-      <button type="button" className="action-feedback-close" aria-label="关闭操作提示" onClick={dismiss}>×</button>
-    </div>, document.body,
+      <IconButton label="关闭提示" icon={X} size="sm" onClick={dismiss} />
+    </div>,
+    document.body,
   );
 }
 
@@ -93,27 +98,27 @@ export function QueryState({
   retry: () => void;
   children: ReactNode;
 }) {
-  if (loading)
-    return (
-      <p className="real-empty" role="status">
-        正在加载…
-      </p>
-    );
+  if (loading) return <Skeleton />;
   if (error)
     return (
-      <div className="real-empty">
-        <p className="real-error" role="alert">
-          {error}
-        </p>
-        <button className="button button-secondary" onClick={retry}>
-          重试
-        </button>
+      <div className="empty" role="alert">
+        <p className="text-bad">加载失败：{error}</p>
+        <Button onClick={retry}>重试</Button>
       </div>
     );
-  return <>{backgroundError && <div className="session-warning" role="status"><span>刷新失败：{backgroundError}</span><button className="button button-secondary compact" onClick={retry}>重试</button></div>}{children}</>;
-}
-export function Empty({ children = "暂无记录" }: { children?: ReactNode }) {
-  return <p className="real-empty">{children}</p>;
+  return (
+    <>
+      {backgroundError && (
+        <div className="notice notice-warn" role="status">
+          <span>刷新失败：{backgroundError}</span>
+          <Button size="sm" onClick={retry}>
+            重试
+          </Button>
+        </div>
+      )}
+      {children}
+    </>
+  );
 }
 export function Card({
   title,
@@ -121,18 +126,18 @@ export function Card({
   actions,
   className,
 }: {
-  title?: string;
+  title?: ReactNode;
   children: ReactNode;
   actions?: ReactNode;
   className?: string;
 }) {
   return (
-    <section className={`real-card ${className || ""}`}>
+    <section className={`card${className ? ` ${className}` : ""}`}>
       {(title || actions) && (
-        <div className="real-card-heading">
-          <h2>{title}</h2>
-          {actions}
-        </div>
+        <header className="card-head">
+          {title && <h2>{title}</h2>}
+          {actions && <div className="card-actions">{actions}</div>}
+        </header>
       )}
       {children}
     </section>
@@ -142,6 +147,11 @@ export const date = (value: string) =>
   new Date(value).toLocaleString("zh-CN", {
     timeZone: "Asia/Shanghai",
     hour12: false,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
   });
 export const roleName = (role: string) =>
   ({
@@ -169,6 +179,24 @@ export const statusName = (status: string) =>
     cancelled: "已取消",
     finished: "已结束",
   })[status] || status;
+// 状态胶囊颜色：进行中/待处理用提醒色，完成用成功色，失效类用弱化色。
+export const statusTone = (status: string): Tone =>
+  (({
+    pending: "warn",
+    waitlist: "warn",
+    draft: "muted",
+    approved: "ok",
+    accepted: "ok",
+    confirmed: "ok",
+    published: "accent",
+    rejected: "bad",
+    declined: "bad",
+    cancelled: "muted",
+    finished: "muted",
+    withdrawn: "muted",
+    revoked: "muted",
+    expired: "muted",
+  }) as Record<string, Tone>)[status] || "muted";
 export function useAction(refresh: () => void | Promise<void>) {
   const running = useRef(false);
   const [busy, setBusy] = useState(false);
@@ -198,21 +226,23 @@ export function useAction(refresh: () => void | Promise<void>) {
     error,
     message,
     run,
-    feedback: <ActionFeedback error={error} message={message} dismiss={() => { setError(""); setMessage(""); }} />,
+    feedback: <Toast error={error} message={message} dismiss={() => { setError(""); setMessage(""); }} />,
   };
 }
 export function Form({
   children,
   onSubmit,
   busy,
+  className,
 }: {
   children: ReactNode;
   onSubmit: (values: FormData) => void;
   busy: boolean;
+  className?: string;
 }) {
   return (
     <form
-      className="real-form"
+      className={`form${className ? ` ${className}` : ""}`}
       onSubmit={(event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         onSubmit(new FormData(event.currentTarget));
@@ -222,7 +252,7 @@ export function Form({
     </form>
   );
 }
-export function Field({
+export function TextField({
   name,
   label,
   defaultValue,
@@ -230,6 +260,7 @@ export function Field({
   required = false,
   min,
   max,
+  hint,
 }: {
   name: string;
   label: string;
@@ -238,23 +269,15 @@ export function Field({
   required?: boolean;
   min?: number;
   max?: number;
+  hint?: ReactNode;
 }) {
   return (
-    <label>
-      {label}
-      <input
-        name={name}
-        type={type}
-        defaultValue={defaultValue}
-        required={required}
-        min={min}
-        max={max}
-      />
-    </label>
+    <Field label={label} hint={hint}>
+      <input name={name} type={type} defaultValue={defaultValue} required={required} min={min} max={max} />
+    </Field>
   );
 }
-export const value = (form: FormData, key: string) =>
-  String(form.get(key) || "");
+export const value = (form: FormData, key: string) => String(form.get(key) || "");
 
 export const serverName = (server: string) =>
   server === "official" ? "官服" : "渠道服";
@@ -269,70 +292,4 @@ export function useProfileOptions() {
   const styleLabel = (code: string) =>
     query.data?.styles.find((option) => option.code === code)?.label || code;
   return { ...query, styleLabel };
-}
-export function Pager({
-  page,
-  total,
-  setPage,
-}: {
-  page: number;
-  total: number;
-  setPage: (page: number) => void;
-}) {
-  return (
-    <div className="real-actions">
-      <button disabled={page <= 1} onClick={() => setPage(page - 1)}>
-        上一页
-      </button>
-      <span>
-        第 {page} 页 · 共 {total} 条
-      </span>
-      <button disabled={page * 20 >= total} onClick={() => setPage(page + 1)}>
-        下一页
-      </button>
-    </div>
-  );
-}
-export function Modal({
-  title,
-  busy,
-  close,
-  children,
-}: {
-  title: string;
-  busy: boolean;
-  close: () => void;
-  children: ReactNode;
-}) {
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !busy) close();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [busy, close]);
-  return (
-    <div className="modal-backdrop" onClick={() => !busy && close()}>
-      <section
-        className="create-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        onClick={(event) => event.stopPropagation()}
-      >
-        <header>
-          <h2>{title}</h2>
-          <button
-            className="text-button"
-            aria-label={`关闭${title}`}
-            disabled={busy}
-            onClick={close}
-          >
-            ×
-          </button>
-        </header>
-        {children}
-      </section>
-    </div>
-  );
 }

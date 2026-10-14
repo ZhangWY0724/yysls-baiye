@@ -98,7 +98,7 @@ public sealed class GuildsController(YanyunDbContext database, BusinessOperation
             await operations.MemberAsync(guildId, false, true, token);
             var guild = await operations.GuildAsync(guildId, token);
             BusinessOperations.Version(guild.Version, operations.HeaderVersion()); operations.ConfirmHeader("X-Confirm-Guild-Id", guildId);
-            await cleanup.GuildAsync(guildId, token); return new DeletedResponse(true);
+            await cleanup.GuildAsync(guildId, operations.UserId, token); return new DeletedResponse(true);
         }, token));
     [HttpGet("{guildId:guid}/members")]
     public async Task<ApiResponse<PagedResponse<MemberResponse>>> Members(Guid guildId, CancellationToken token, int page = 1,
@@ -138,6 +138,7 @@ public sealed class GuildsController(YanyunDbContext database, BusinessOperation
             if (member.Role == "owner" || member.UserId == operations.UserId || actor.Role == "admin" && member.Role != "member") throw BusinessOperations.Forbidden();
             await cleanup.MemberAsync(member, token);
             guild = await operations.GuildAsync(guildId, token); guild.Version++;
+            cleanup.NotifyRemoved(member.UserId, guild.Name);
             return new MemberDeletedResponse(true, guild.Version);
         }, token));
     [HttpPost("{guildId:guid}/leave")]
@@ -149,7 +150,7 @@ public sealed class GuildsController(YanyunDbContext database, BusinessOperation
             if (request.ConfirmGuildId != guildId || member.Role == "owner" && request.ConfirmDissolve != true ||
                 member.Role != "owner" && request.ConfirmDissolve == true) throw BusinessOperations.Invalid("退会确认不匹配；社长退会须确认解散");
             var dissolved = member.Role == "owner";
-            if (dissolved) await cleanup.GuildAsync(guildId, token);
+            if (dissolved) await cleanup.GuildAsync(guildId, operations.UserId, token);
             else { await cleanup.MemberAsync(member, token); guild = await operations.GuildAsync(guildId, token); guild.Version++; }
             return new LeaveResponse(true, dissolved);
         }, token));

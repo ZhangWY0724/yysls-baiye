@@ -210,6 +210,10 @@ public sealed class BusinessTests : IAsyncLifetime
         await Data(a, $"/guilds/{guild}", expected: 404);
         Assert.Equal(JsonValueKind.Null, (await Data(b, "/me")).GetProperty("membership").ValueKind);
         Assert.Equal(1, (await Data(b, "/profiles")).GetProperty("items").GetArrayLength());
+        Assert.Contains((await Data(b, "/notifications")).GetProperty("items").EnumerateArray(),
+            notice => notice.GetProperty("type").GetString() == "guild.dissolved");
+        Assert.DoesNotContain((await Data(a, "/notifications")).GetProperty("items").EnumerateArray(),
+            notice => notice.GetProperty("type").GetString() == "guild.dissolved");
         using var verify = _factory.Services.CreateScope();var db = verify.ServiceProvider.GetRequiredService<YanyunDbContext>();
         Assert.False(await db.Events.AnyAsync(raid=>raid.GuildId==guild));Assert.False(await db.Assignments.AnyAsync());
     }
@@ -251,6 +255,23 @@ public sealed class BusinessTests : IAsyncLifetime
         var one=await store.CreateSessionAsync(user);var two=await store.CreateSessionAsync(user);await store.RevokeUserSessionsAsync(user);
         await Assert.ThrowsAsync<Yanyun.Api.Common.BusinessException>(()=>store.RotateSessionAsync(one.Token));
         await Assert.ThrowsAsync<Yanyun.Api.Common.BusinessException>(()=>store.RotateSessionAsync(two.Token));
+    }
+
+    [InfrastructureFact]
+    public async Task RemovedMemberKeepsOwnNotificationAfterCleanup()
+    {
+        var owner=await Account();var member=await Account();using var a=owner.Client;using var b=member.Client;
+        await Profile(a);await Profile(b);var guild=await Guild(a);await Join(a,b,member.UserId,guild);
+        var membership=(await Data(b,"/me")).GetProperty("membership").GetProperty("membership_id").GetGuid();
+        var version=(await Data(a,"/me")).GetProperty("membership").GetProperty("guild_version").GetInt64();
+        using(var request=new HttpRequestMessage(HttpMethod.Delete,$"/api/v1/guilds/{guild}/members/{membership}"))
+        {
+            request.Headers.Add("X-Expected-Version",version.ToString());request.Headers.Add("X-Confirm-Membership-Id",membership.ToString());
+            using var response=await a.SendAsync(request);response.EnsureSuccessStatusCode();
+        }
+        var notice=Assert.Single((await Data(b,"/notifications")).GetProperty("items").EnumerateArray());
+        Assert.Equal("member.removed",notice.GetProperty("type").GetString());
+        Assert.Equal(JsonValueKind.Null,notice.GetProperty("target").GetProperty("guild_id").ValueKind);
     }
 
     [InfrastructureFact]

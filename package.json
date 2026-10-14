@@ -10,6 +10,7 @@
     "api:generate": "openapi-typescript http://localhost:5080/openapi/v1.json -o lib/api.generated.ts"
   },
   "dependencies": {
+    "@fontsource/noto-serif-sc": "^5.0.0",
     "@microsoft/signalr": "^10.0.0",
     "@types/node": "^22.10.0",
     "@types/react": "^19.0.0",

@@ -1,8 +1,8 @@
 "use client";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { api, signIn } from "@/lib/api";
+import { Button, ButtonLink, Field } from "./ui";
 
 export function AuthPage({ register }: { register: boolean }) {
   const router = useRouter();
@@ -67,17 +67,14 @@ export function AuthPage({ register }: { register: boolean }) {
   return (
     <main className="login-page">
       <section className="login-card">
-        <span className="brand-mark">燕</span>
+        <span className="brand-mark brand-mark-lg">燕</span>
         <span className="kicker">燕云十六声 · 百业工具</span>
         <h1>{register ? "邮箱注册" : "邮箱登录"}</h1>
-        <p>
-          {register
-            ? "验证邮箱后创建账号，开始安排副本。"
-            : "使用邮箱和密码登录百业平台。"}
+        <p className="section-desc">
+          {register ? "验证邮箱后创建账号，开始安排副本。" : "使用邮箱和密码登录百业平台。"}
         </p>
-        <form className="real-form" onSubmit={submit}>
-          <label>
-            邮箱
+        <form className="form" onSubmit={submit}>
+          <Field label="邮箱">
             <input
               required
               type="email"
@@ -86,20 +83,17 @@ export function AuthPage({ register }: { register: boolean }) {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
-          </label>
+          </Field>
           {register && (
             <>
-              <label>
-                昵称（可选）
-                <input
-                  maxLength={32}
-                  value={nickname}
-                  onChange={(e) => setNickname(e.target.value)}
-                />
-              </label>
-              <label>
-                验证码
-                <div className="real-inline">
+              <Field label="昵称（可选）">
+                <input maxLength={32} value={nickname} onChange={(e) => setNickname(e.target.value)} />
+              </Field>
+              <Field
+                label="验证码"
+                hint={challenge ? "验证码已发送，请检查收件箱及垃圾邮件。" : undefined}
+              >
+                <span className="input-with-action">
                   <input
                     required
                     inputMode="numeric"
@@ -108,23 +102,14 @@ export function AuthPage({ register }: { register: boolean }) {
                     value={code}
                     onChange={(e) => setCode(e.target.value)}
                   />
-                  <button
-                    type="button"
-                    className="button button-secondary"
-                    disabled={busy || cooldown > 0 || !email}
-                    onClick={send}
-                  >
+                  <Button disabled={busy || cooldown > 0 || !email} onClick={send}>
                     {cooldown ? `${cooldown} 秒后重发` : "发送验证码"}
-                  </button>
-                </div>
-              </label>
-              {challenge && (
-                <small>验证码已发送，请检查收件箱及垃圾邮件。</small>
-              )}
+                  </Button>
+                </span>
+              </Field>
             </>
           )}
-          <label>
-            密码
+          <Field label="密码" hint={register ? "至少 8 位" : undefined}>
             <input
               required
               type="password"
@@ -134,24 +119,21 @@ export function AuthPage({ register }: { register: boolean }) {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
-          </label>
+          </Field>
           {error && (
-            <p role="alert" className="real-error">
+            <p role="alert" className="notice notice-bad">
               {error}
             </p>
           )}
-          <button className="button button-primary" disabled={busy}>
+          <Button type="submit" variant="primary" block disabled={busy}>
             {busy ? "处理中…" : register ? "验证并注册" : "登录"}
-          </button>
+          </Button>
         </form>
         <div className="auth-switch">
           <span>{register ? "已有账号？" : "还没有账号？"}</span>
-          <Link
-            className="button button-secondary auth-switch-button"
-            href={register ? "/login" : "/register"}
-          >
+          <ButtonLink block href={register ? "/login" : "/register"}>
             {register ? "返回登录" : "邮箱注册"}
-          </Link>
+          </ButtonLink>
         </div>
         <footer>非官方玩家工具，与游戏运营方无关</footer>
       </section>

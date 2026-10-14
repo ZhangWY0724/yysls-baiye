@@ -3,14 +3,9 @@ import Link from "next/link";
 import { useState } from "react";
 import { api } from "@/lib/api";
 import { Notice, NoticePage } from "@/lib/contracts";
-import {
-  Card,
-  date,
-  Empty,
-  QueryState,
-  useAction,
-  useQuery,
-} from "./business-ui";
+import { Bell, Check, CheckCheck } from "lucide-react";
+import { Card, date, QueryState, useAction, useQuery } from "./business-ui";
+import { Button, CursorPager, EmptyState, IconButton, PageActions, Tabs } from "./ui";
 export function noticeLink(notice: Notice) {
   const target = notice.target;
   if (target.kind === "raid_event" && target.guild_id && target.event_id)
@@ -22,104 +17,87 @@ export function noticeLink(notice: Notice) {
       ? `/guilds/${target.guild_id}/members?tab=applications`
       : "/settings/applications";
   if (target.guild_id) return `/guilds/${target.guild_id}`;
+  // 移出、解散类通知不再挂靠已删除的百业，跳转百业列表。
+  if (target.kind === "guild") return "/guilds";
   return "/me/week";
 }
 export function NotificationPage({ changed }: { changed: () => void }) {
   const [cursor, setCursor] = useState<string | null>(null);
-  const [unread, setUnread] = useState(false);
+  const [filter, setFilter] = useState<"all" | "unread">("all");
   const query = useQuery<NoticePage>(
-    `/notifications?unread_only=${unread}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}&limit=20`,
+    `/notifications?unread_only=${filter === "unread"}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}&limit=20`,
   );
   const action = useAction(changed);
+  const markRead = (notice: Notice, message?: string) =>
+    action.run(() => api("/notifications/read", "POST", { notification_ids: [notice.id] }), message);
   return (
-    <Card
-      className="notification-card"
-      title="站内通知"
-      actions={
-        <button
-          className="button button-secondary compact"
+    <div className="stack">
+      {action.feedback}
+      <PageActions>
+        <Button
+          icon={CheckCheck}
           disabled={action.busy}
-          onClick={() =>
-            action.run(() => api("/notifications/read", "POST", { all: true }))
-          }
+          onClick={() => action.run(() => api("/notifications/read", "POST", { all: true }), "已全部标为已读")}
         >
           全部已读
-        </button>
-      }
-    >
-      {action.feedback}
-      <label className="real-checkbox notification-filter">
-        <input
-          type="checkbox"
-          checked={unread}
-          onChange={(e) => {
-            setUnread(e.target.checked);
+        </Button>
+      </PageActions>
+      <div className="toolbar">
+        <Tabs
+          label="通知筛选"
+          items={[
+            ["all", "全部"],
+            ["unread", "未读"],
+          ]}
+          value={filter}
+          onChange={(next) => {
+            setFilter(next);
             setCursor(null);
           }}
         />
-        只看未读
-      </label>
-      <QueryState {...query} retry={query.reload}>
-        {!query.data?.items.length && <Empty>暂无通知</Empty>}
-        {query.data?.items.map((notice) => (
-          <div
-            className={`real-row ${notice.read_at ? "" : "real-unread"}`}
-            key={notice.id}
-          >
-            <div>
-              <strong>{notice.title}</strong>
-              <p>{notice.body}</p>
-              <small>{date(notice.created_at)}</small>
-            </div>
-            <Link
-              href={noticeLink(notice)}
-              onClick={() => {
-                if (!notice.read_at)
-                  action.run(
-                    () =>
-                      api("/notifications/read", "POST", {
-                        notification_ids: [notice.id],
-                      }),
-                    "已标为已读",
-                  );
-              }}
-            >
-              查看
-            </Link>
-            {!notice.read_at && (
-              <button
-                className="button button-secondary compact"
-                disabled={action.busy}
-                onClick={() =>
-                  action.run(() =>
-                    api("/notifications/read", "POST", {
-                      notification_ids: [notice.id],
-                    }),
-                  )
-                }
-              >
-                已读
-              </button>
-            )}
+      </div>
+      <Card>
+        <QueryState {...query} retry={query.reload}>
+          {!query.data?.items.length && (
+            <EmptyState icon={Bell} title={filter === "unread" ? "没有未读通知" : "暂无通知"}>
+              申请、邀请和排班变化会在这里提醒你。
+            </EmptyState>
+          )}
+          <div className="list">
+            {query.data?.items.map((notice) => (
+              <div className={`list-row notice-row${notice.read_at ? "" : " is-unread"}`} key={notice.id}>
+                <Link
+                  className="list-link"
+                  href={noticeLink(notice)}
+                  onClick={() => {
+                    if (!notice.read_at) void markRead(notice, "已标为已读");
+                  }}
+                >
+                  <span className="unread-dot" aria-label={notice.read_at ? undefined : "未读"} />
+                  <span className="list-main">
+                    <strong>{notice.title}</strong>
+                    <span className="list-desc">{notice.body}</span>
+                    <small>{date(notice.created_at)}</small>
+                  </span>
+                </Link>
+                {!notice.read_at && (
+                  <IconButton
+                    label="标为已读"
+                    icon={Check}
+                    size="sm"
+                    disabled={action.busy}
+                    onClick={() => markRead(notice)}
+                  />
+                )}
+              </div>
+            ))}
           </div>
-        ))}
-        <div className="real-actions notification-pagination">
-          <button
-            className="button button-secondary compact"
-            disabled={!cursor}
-            onClick={() => setCursor(null)}
-          >
-            返回最新
-          </button>
-          <button
-            className="button button-secondary compact"
-            disabled={!query.data?.next_cursor}
-            onClick={() => setCursor(query.data!.next_cursor)}
-          >
-            下一页
-          </button>
-        </div>
-      </QueryState>
-    </Card>
+          <CursorPager
+            onFirst={cursor ? () => setCursor(null) : undefined}
+            onNext={query.data?.next_cursor ? () => setCursor(query.data!.next_cursor) : undefined}
+          />
+        </QueryState>
+      </Card>
+    </div>
   );
 }
