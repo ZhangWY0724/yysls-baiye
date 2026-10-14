@@ -50,7 +50,7 @@ public sealed class ReminderService(IServiceScopeFactory scopes, ILogger<Reminde
             {
                 var raid = due.Raid;
                 database.Notifications.Add(NotificationFactory.Create(due.UserId, raid.GuildId, raid.Id, "raid.reminder", "副本即将开始",
-                    $"「{raid.Title}」即将开始，请查看安排", new { Kind = "raid_event", raid.GuildId, EventId = raid.Id },
+                    $"{BusinessOperations.RaidLabel(raid)}即将开始，请查看安排", new { Kind = "raid_event", raid.GuildId, EventId = raid.Id },
                     dedupeKey: $"reminder:{raid.Id:D}:{due.UserId:D}"));
                 publisher.Queue(due.UserId, "created");
             }

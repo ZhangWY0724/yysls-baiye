@@ -1655,13 +1655,14 @@ textarea::placeholder {
 }
 .drawer-actions {
   position: sticky;
-  bottom: 0;
+  bottom: -24px;
+  z-index: 1;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   margin: 8px -24px -24px;
-  padding: 14px 24px;
+  padding: 10px 24px;
   background: var(--surface);
   border-top: 1px solid var(--line);
 }

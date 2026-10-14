@@ -78,6 +78,12 @@ public sealed class CleanupService(YanyunDbContext database, NotificationPublish
         await database.Users.Where(user => user.Id == userId).ExecuteDeleteAsync(token);
         database.ChangeTracker.Clear();
     }
+    public async Task DeleteEventAsync(Guid eventId, CancellationToken token)
+    {
+        var recipients = await database.Notifications.Where(row => row.EventId == eventId).Select(row => row.UserId).Distinct().ToArrayAsync(token);
+        await EventsAsync([eventId], token);
+        foreach (var user in recipients) publisher.Queue(user, "deleted");
+    }
     private async Task EventsAsync(Guid[] eventIds, CancellationToken token)
     {
         await database.Assignments.Where(assignment => eventIds.Contains(assignment.EventId)).ExecuteDeleteAsync(token);
@@ -113,10 +119,14 @@ public sealed class CleanupService(YanyunDbContext database, NotificationPublish
                 if (count >= capacity) break;
                 if (!await database.Users.AnyAsync(user => user.Id == assignment.UserId && user.Status == "active" && user.EmailVerifiedAt != null, token)) continue;
                 if (await HasConflictAsync(assignment.UserId, raid, token)) continue;
+                var seat = Seats.FirstFree(raid, role, await database.Assignments.Where(row => row.EventId == eventId && row.Status == "confirmed").Select(row => row.SlotIndex).ToArrayAsync(token));
+                if (seat is null) break;
                 assignment.Status = "confirmed";
+                assignment.SlotIndex = seat;
+                await database.SaveChangesAsync(token);
                 count++;
                 database.Notifications.Add(NotificationFactory.Create(assignment.UserId, raid.GuildId, raid.Id, "assignment.promoted",
-                    "候补已递补", $"你已进入「{raid.Title}」正式队伍", new { Kind = "raid_event", raid.GuildId, EventId = raid.Id }));
+                    "候补已递补", $"你已进入{BusinessOperations.RaidLabel(raid)}正式队伍", new { Kind = "raid_event", raid.GuildId, EventId = raid.Id }));
                 publisher.Queue(assignment.UserId, "created");
             }
         }

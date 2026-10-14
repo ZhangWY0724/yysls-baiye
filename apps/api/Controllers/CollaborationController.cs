@@ -169,7 +169,11 @@ public sealed class CollaborationController(YanyunDbContext database, BusinessOp
             invitation.UsedCount++; if (invitation.Type == "direct") invitation.Status = "accepted"; guild.Version++;
             database.Set<InvitationAcceptance>().Add(new() { InvitationId = invitationId, MembershipId = member.Id, UserId = operations.UserId });
             await database.SaveChangesAsync(token);
-            operations.Notify(invitation.CreatedBy, guild.Id, null, "invitation.accepted", "邀请已接受", "玩家已接受邀请加入百业",
+            var chosen = await database.Users.Where(user => user.Id == operations.UserId).Select(user => user.DefaultProfileId).SingleAsync(token);
+            var joined = await database.Profiles.Where(profile => profile.UserId == operations.UserId && profile.DeletedAt == null && profile.Server == guild.Server)
+                .OrderByDescending(profile => profile.Id == chosen).ThenBy(profile => profile.CreatedAt).ThenBy(profile => profile.Id).FirstOrDefaultAsync(token);
+            operations.Notify(invitation.CreatedBy, guild.Id, null, "invitation.accepted", "邀请已接受",
+                joined is null ? "玩家已接受邀请加入百业" : $"角色「{joined.Name}」已接受邀请加入百业",
                 new { Kind = "guild", GuildId = guild.Id }, operations.UserId);
             return await views.MembershipAsync(member, token);
         }, token));

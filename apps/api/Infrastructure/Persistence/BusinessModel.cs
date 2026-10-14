@@ -32,6 +32,7 @@ public static class BusinessModel
                     entity.Property(property.Name).HasColumnType("jsonb");
             }
         }
+        model.Entity<GameProfile>().Property(profile => profile.Power).HasPrecision(12, 4);
         model.Entity<GameProfile>().HasAlternateKey(profile => new { profile.Id, profile.UserId });
         model.Entity<GameProfile>().HasOne<User>().WithMany().HasForeignKey(profile => profile.UserId).OnDelete(DeleteBehavior.NoAction);
         model.Entity<GameProfile>().ToTable("game_profiles", table =>
@@ -80,10 +81,12 @@ public static class BusinessModel
         model.Entity<Assignment>().HasOne<GameProfile>().WithMany().HasForeignKey(assignment => new { assignment.ProfileId, assignment.UserId })
             .HasPrincipalKey(profile => new { profile.Id, profile.UserId }).OnDelete(DeleteBehavior.NoAction);
         model.Entity<Assignment>().HasIndex(assignment => new { assignment.EventId, assignment.UserId }).IsUnique();
+        model.Entity<Assignment>().HasIndex(assignment => new { assignment.EventId, assignment.SlotIndex }).IsUnique();
         model.Entity<Assignment>().HasIndex(assignment => new { assignment.EventId, assignment.Status, assignment.SlotRole, assignment.CreatedAt, assignment.Id });
         model.Entity<Assignment>().ToTable("assignments", table =>
         {
             table.HasCheckConstraint("ck_assignment_role", "slot_role IN ('tank','healer','dps')");
+            table.HasCheckConstraint("ck_assignment_seat", "slot_index IS NULL OR slot_index BETWEEN 1 AND 10");
             table.HasCheckConstraint("ck_assignment_status", "status IN ('confirmed','waitlist')");
         });
         model.Entity<Notification>().HasOne<User>().WithMany().HasForeignKey(notification => notification.UserId).OnDelete(DeleteBehavior.NoAction);

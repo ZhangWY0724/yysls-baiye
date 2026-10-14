@@ -96,6 +96,7 @@ public sealed class RaidsController(YanyunDbContext database, BusinessOperations
         {
             await operations.MemberAsync(guildId, true, false, token);
             if (request.TemplateId is null || request.StartsAt is null || request.SignupMode is null) throw BusinessOperations.Invalid("模板、开始时间和报名模式必填");
+            if (request.StartsAt <= DateTimeOffset.UtcNow) throw BusinessOperations.Conflict("EVENT_STARTED", "不能在过去或当前时间创建场次");
             var template = await database.Templates.SingleOrDefaultAsync(template => template.Id == request.TemplateId && template.ArchivedAt == null &&
                 (template.GuildId == null || template.GuildId == guildId), token) ?? throw BusinessOperations.Missing();
             var guild = await operations.GuildAsync(guildId, token);
@@ -126,11 +127,15 @@ public sealed class RaidsController(YanyunDbContext database, BusinessOperations
             foreach (var (role, capacity) in new[] { ("tank", raid.NeedTank), ("healer", raid.NeedHealer), ("dps", raid.NeedDps) })
                 if (await database.Assignments.CountAsync(assignment => assignment.EventId == eventId && assignment.Status == "confirmed" && assignment.SlotRole == role, token) > capacity)
                     throw BusinessOperations.Conflict("CAPACITY_CONFLICT", "新容量小于已报名人数");
+            var seated = await database.Assignments.Where(assignment => assignment.EventId == eventId && assignment.Status == "confirmed")
+                .Select(assignment => new { assignment.SlotRole, assignment.SlotIndex }).ToArrayAsync(token);
+            if (seated.Any(item => item.SlotIndex is null || item.SlotIndex > Seats.Total(raid) || Seats.RoleOf(raid, item.SlotIndex.Value) != item.SlotRole))
+                throw BusinessOperations.Conflict("CAPACITY_CONFLICT", "新容量与已占座位冲突");
             var users = await database.Assignments.Where(assignment => assignment.EventId == eventId).Select(assignment => new { assignment.UserId, assignment.Status }).ToArrayAsync(token);
             foreach (var user in users)
             {
                 if (user.Status == "confirmed" && await cleanup.HasConflictAsync(user.UserId, raid, token)) throw BusinessOperations.Conflict("ACCOUNT_TIME_CONFLICT", "改时后与现有排班冲突");
-                operations.Notify(user.UserId, guildId, eventId, "raid.changed", "场次安排已变更", $"「{raid.Title}」安排已变更",
+                operations.Notify(user.UserId, guildId, eventId, "raid.changed", "场次安排已变更", $"{BusinessOperations.RaidLabel(raid)}安排已变更",
                     new { Kind = "raid_event", GuildId = guildId, EventId = eventId });
             }
             raid.Version++; await database.SaveChangesAsync(token);
@@ -147,8 +152,26 @@ public sealed class RaidsController(YanyunDbContext database, BusinessOperations
             BusinessOperations.Version(raid.Version, operations.HeaderVersion()); Open(raid);
             raid.Status = "cancelled"; raid.Version++;
             var users = await database.Assignments.Where(assignment => assignment.EventId == eventId).Select(assignment => assignment.UserId).ToArrayAsync(token);
-            foreach (var user in users) operations.Notify(user, guildId, eventId, "raid.cancelled", "场次已取消", $"「{raid.Title}」已取消",
+            foreach (var user in users) operations.Notify(user, guildId, eventId, "raid.cancelled", "场次已取消", $"{BusinessOperations.RaidLabel(raid)}已取消",
                 new { Kind = "raid_event", GuildId = guildId, EventId = eventId });
+            return new CancelledResponse(true, raid.Version);
+        }, token));
+    // 删除未开始或已取消的场次：已发布且有报名时先通知成员；通知不绑定被删场次，避免随场次一起被清掉。
+    [HttpDelete("guilds/{guildId:guid}/events/{eventId:guid}/permanent")]
+    public async Task<ApiResponse<CancelledResponse>> DeleteEvent(Guid guildId, Guid eventId, CancellationToken token) => ApiResponse.Success(
+        await operations.WriteAsync($"event.delete:{eventId}", new { eventId }, guildId, null, false, async () =>
+        {
+            await operations.MemberAsync(guildId, true, false, token);
+            var raid = await database.Events.SingleOrDefaultAsync(raid => raid.Id == eventId && raid.GuildId == guildId, token) ?? throw BusinessOperations.Missing();
+            if (raid.Status != "cancelled" && raid.StartsAt <= DateTimeOffset.UtcNow) throw BusinessOperations.Conflict("EVENT_STARTED", "已开始的场次不能删除");
+            if (raid.Status == "published")
+            {
+                var users = await database.Assignments.Where(assignment => assignment.EventId == eventId).Select(assignment => assignment.UserId).Distinct().ToArrayAsync(token);
+                foreach (var user in users) operations.Notify(user, guildId, null, "raid.cancelled", "场次已取消", $"{BusinessOperations.RaidLabel(raid)}已取消并删除",
+                    new { Kind = "guild", GuildId = guildId });
+            }
+            await cleanup.DeleteEventAsync(eventId, token);
+            operations.Audit("event.deleted", eventId, guildId, null);
             return new CancelledResponse(true, raid.Version);
         }, token));
     [HttpPost("events/{eventId:guid}/assignments")]
@@ -170,17 +193,27 @@ public sealed class RaidsController(YanyunDbContext database, BusinessOperations
             if (await database.Assignments.AnyAsync(assignment => assignment.EventId == eventId && assignment.UserId == profile.UserId, token))
                 throw BusinessOperations.Conflict("ALREADY_ASSIGNED", "该账号已报名");
             var capacity = request.SlotRole switch { "tank" => raid.NeedTank, "healer" => raid.NeedHealer, "dps" => raid.NeedDps, _ => throw BusinessOperations.Invalid("定位不正确") };
-            var full = await database.Assignments.CountAsync(assignment => assignment.EventId == eventId && assignment.SlotRole == request.SlotRole && assignment.Status == "confirmed", token) >= capacity;
+            var taken = await database.Assignments.Where(assignment => assignment.EventId == eventId && assignment.Status == "confirmed").Select(assignment => assignment.SlotIndex).ToArrayAsync(token);
+            int? seat = null;
+            if (request.SlotIndex is not null)
+            {
+                if (request.SlotIndex > Seats.Total(raid) || Seats.RoleOf(raid, request.SlotIndex.Value) != request.SlotRole) throw BusinessOperations.Invalid("座位与定位不匹配");
+                if (taken.Contains(request.SlotIndex)) throw BusinessOperations.Conflict("SEAT_TAKEN", "该座位已被占用");
+                seat = request.SlotIndex;
+            }
+            else seat = Seats.FirstFree(raid, request.SlotRole, taken);
+            var full = seat is null || taken.Count(index => index is not null && Seats.RoleOf(raid, index.Value) == request.SlotRole) >= capacity;
+            if (full) seat = null;
             if (full && request.Action == "assign") throw BusinessOperations.Conflict("CAPACITY_CONFLICT", "该定位已满，指派不能转候补");
             if (!full && await cleanup.HasConflictAsync(profile.UserId, raid, token))
                 throw BusinessOperations.Conflict("ACCOUNT_TIME_CONFLICT", "该账号已有重叠正式排班");
             if (full && await database.Assignments.CountAsync(assignment => assignment.EventId == eventId && assignment.Status == "waitlist", token) >= 100)
                 throw BusinessOperations.Conflict("WAITLIST_LIMIT_REACHED", "候补队列已满");
             var assignment = new Assignment { EventId = eventId, UserId = profile.UserId, ProfileId = profile.Id, MembershipId = member.Id,
-                AssignedBy = operations.UserId, SlotRole = request.SlotRole, Status = full ? "waitlist" : "confirmed" };
+                AssignedBy = operations.UserId, SlotRole = request.SlotRole, SlotIndex = seat, Status = full ? "waitlist" : "confirmed" };
             database.Assignments.Add(assignment); raid.Version++;
             operations.Notify(profile.UserId, raid.GuildId, eventId, full ? "assignment.waitlisted" : "assignment.confirmed", full ? "已加入候补" : "排班已确认",
-                $"「{raid.Title}」{(full ? "候补" : "报名")}成功", new { Kind = "raid_event", raid.GuildId, EventId = eventId }, operations.UserId);
+                $"{BusinessOperations.RaidLabel(raid)}{(full ? "候补" : "报名")}成功", new { Kind = "raid_event", raid.GuildId, EventId = eventId }, operations.UserId);
             operations.Audit("assignment.created", assignment.Id, raid.GuildId, eventId, profile.UserId);
             await database.SaveChangesAsync(token);
             return new AssignmentCreatedResponse(assignment.Id, assignment.Status, full ? await database.Assignments.CountAsync(
@@ -199,7 +232,7 @@ public sealed class RaidsController(YanyunDbContext database, BusinessOperations
             if (assignment is null) return new AssignmentDeletedResponse(true, raid.Version);
             if (assignment.UserId != operations.UserId && member.Role == "member") throw BusinessOperations.Forbidden();
             database.Assignments.Remove(assignment); raid.Version++;
-            operations.Notify(assignment.UserId, raid.GuildId, eventId, "assignment.removed", "排班已取消", $"「{raid.Title}」排班已取消",
+            operations.Notify(assignment.UserId, raid.GuildId, eventId, "assignment.removed", "排班已取消", $"{BusinessOperations.RaidLabel(raid)}排班已取消",
                 new { Kind = "raid_event", raid.GuildId, EventId = eventId }, operations.UserId);
             await database.SaveChangesAsync(token); await cleanup.PromoteAsync(eventId, token);
             return new AssignmentDeletedResponse(true, raid.Version);

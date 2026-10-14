@@ -143,6 +143,8 @@ public sealed class BusinessOperations(YanyunDbContext database, IHttpContextAcc
         if (Context.Request.Query.Keys.Except(names, StringComparer.Ordinal).Any()) throw Invalid("包含不支持的查询参数");
     }
     // 通知与业务数据同一事务写入；提交后由 NotificationPublisher 推送变更提示。
+    // 通知里用“标题 + 北京时间开始时刻”指代场次，避免同一天同模板的多场次标题相同而无法区分。
+    public static string RaidLabel(RaidEvent raid) => $"「{raid.Title}」（{raid.StartsAt.ToOffset(TimeSpan.FromHours(8)):M月d日 HH:mm}）";
     public void Notify(Guid userId, Guid? guildId, Guid? eventId, string type, string title, string body,
         object target, params Guid[] related)
     {

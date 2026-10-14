@@ -162,6 +162,9 @@ export const roleName = (role: string) =>
     healer: "奶妈",
     dps: "输出",
   })[role] || role;
+// 鹅力统一展示：保留四位小数并带“鹅”字单位，例如 5.0000鹅。
+export const formatPower = (power: number) => `${power.toFixed(4)}鹅`;
+
 export const statusName = (status: string) =>
   ({
     pending: "待处理",
@@ -260,6 +263,7 @@ export function TextField({
   required = false,
   min,
   max,
+  step,
   hint,
 }: {
   name: string;
@@ -267,13 +271,14 @@ export function TextField({
   defaultValue?: string | number;
   type?: string;
   required?: boolean;
-  min?: number;
+  min?: number | string;
   max?: number;
+  step?: number | string;
   hint?: ReactNode;
 }) {
   return (
     <Field label={label} hint={hint}>
-      <input name={name} type={type} defaultValue={defaultValue} required={required} min={min} max={max} />
+      <input name={name} type={type} defaultValue={defaultValue} required={required} min={min} max={max} step={step} />
     </Field>
   );
 }

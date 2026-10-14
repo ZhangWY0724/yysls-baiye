@@ -11,6 +11,10 @@ import {
   Plus,
   Send,
   UserPlus,
+  Leaf,
+  Shield,
+  Sword,
+  Trash2,
 } from "lucide-react";
 import { useState } from "react";
 import { api, idempotency } from "@/lib/api";
@@ -31,6 +35,7 @@ import {
   useQuery,
   value,
   WEEKDAYS,
+  formatPower,
 } from "./business-ui";
 import {
   Avatar,
@@ -52,6 +57,18 @@ import {
 const DAY = 86400000;
 const WEEK = 7 * DAY;
 const ROLES = ["tank", "healer", "dps"] as const;
+// 十个固定座位：前几个为承伤，随后为奶妈，其余为输出；展示顺序保证左列 1–5 号、右列 6–10 号。
+const SEAT_ORDER = [1, 6, 2, 7, 3, 8, 4, 9, 5, 10];
+const ROLE_ICON = { tank: Shield, healer: Leaf, dps: Sword };
+const ROLE_COLOR = { tank: "var(--accent)", healer: "var(--ok)", dps: "var(--bad)" };
+const seatTotal = (raid: Raid) => raid.capacities.tank + raid.capacities.healer + raid.capacities.dps;
+const seatRole = (raid: Raid, index: number): (typeof ROLES)[number] =>
+  index <= raid.capacities.tank ? "tank" : index <= raid.capacities.tank + raid.capacities.healer ? "healer" : "dps";
+const seatsOf = (raid: Raid) => SEAT_ORDER.filter((index) => index <= seatTotal(raid));
+function RoleIcon({ role, size = 14 }: { role: (typeof ROLES)[number]; size?: number }) {
+  const Icon = ROLE_ICON[role];
+  return <Icon size={size} strokeWidth={1.75} color={ROLE_COLOR[role]} style={{ flexShrink: 0 }} aria-label={roleName(role)} />;
+}
 // 以北京时间表示的 ISO 字符串，例如 "2026-10-14T20:00:00.000Z" 中的日期与时刻均为北京时间。
 const beijingIso = (ms: number) => new Date(ms + 8 * 3600000).toISOString();
 // 本周一北京时间 0 点（以 UTC 毫秒数表示的日历日期）。
@@ -132,28 +149,23 @@ function RaidCard({ raid, open }: { raid: Raid; open: () => void }) {
         {timeOf(raid.starts_at)}
         {raid.my_assignment && (
           <StatusPill tone={statusTone(raid.my_assignment.status)}>
-            我{statusName(raid.my_assignment.status)}
+            {raid.my_assignment.status === "waitlist" ? "已候补" : "已报名"}
           </StatusPill>
         )}
       </span>
       <strong>{raid.title}</strong>
       <small>{raid.template_name}</small>
-      {ROLES.map((role) => {
-        const group = raid.confirmed_assignments.filter((item) => item.slot_role === role);
-        return (
-          <span className="role-row" key={role}>
-            <span>{roleName(role)}</span>
-            <span className="slot-row">
-              {group.map((item) => (
-                <Avatar key={item.id} name={item.profile.name} id={item.user_id} size="xs" />
-              ))}
-              {Array.from({ length: Math.max(0, raid.capacities[role] - group.length) }, (_, index) => (
-                <i className="slot-empty" key={index} />
-              ))}
+      <span className="member-grid">
+        {seatsOf(raid).map((index) => {
+          const holder = raid.confirmed_assignments.find((item) => item.slot_index === index);
+          return (
+            <span className="raid-card-time" key={index}>
+              <RoleIcon role={seatRole(raid, index)} />
+              {holder ? <span style={{ color: "var(--text)" }}>{holder.profile.name}</span> : <i className="slot-empty" />}
             </span>
-          </span>
-        );
-      })}
+          );
+        })}
+      </span>
       <span className="raid-card-foot">
         <StatusPill tone={tone}>{label}</StatusPill>
         <span>
@@ -181,6 +193,7 @@ export function RaidsPage({ id, me, eventId }: { id: string; me: Me; eventId?: s
   const manage = canManage(me, id);
   const action = useAction(week.reload);
   const today = beijingIso(Date.now()).slice(0, 10);
+  const canCreateThisWeek = week.data ? Date.parse(week.data.week_end) > Date.now() : offset >= 0;
   const range = week.data
     ? `${date(week.data.week_start).split(" ")[0]} – ${date(new Date(Date.parse(week.data.week_end) - 1).toISOString()).split(" ")[0].slice(5)}`
     : weekKey(offset);
@@ -196,7 +209,7 @@ export function RaidsPage({ id, me, eventId }: { id: string; me: Me; eventId?: s
           <Button icon={Layers} onClick={() => setTemplatesOpen(true)}>
             副本模板
           </Button>
-          <Button variant="primary" icon={Plus} onClick={() => openCreate()}>
+          <Button variant="primary" icon={Plus} disabled={!canCreateThisWeek} onClick={() => openCreate()}>
             开一场
           </Button>
         </PageActions>
@@ -236,13 +249,17 @@ export function RaidsPage({ id, me, eventId }: { id: string; me: Me; eventId?: s
                     ))}
                     {!rows.length && <p className="lane-empty">这天没有安排副本</p>}
                   </div>
-                  {manage && (
+                  {manage && start + DAY > Date.now() && (
                     <Button
                       size="sm"
                       variant="ghost"
                       icon={Plus}
                       block
-                      onClick={() => openCreate(beijingIso(start).slice(0, 10) + "T20:00")}
+                      onClick={() => {
+                        const preset = beijingIso(start).slice(0, 10) + "T20:00";
+                        const now = localTime(new Date(Math.ceil(Date.now() / 60000) * 60000).toISOString());
+                        openCreate(preset < now ? now : preset);
+                      }}
                     >
                       开一场
                     </Button>
@@ -286,7 +303,16 @@ export function RaidsPage({ id, me, eventId }: { id: string; me: Me; eventId?: s
             week.reload();
           }}
         >
-          <EventDetail id={id} eventId={selected} me={me} changed={week.reload} />
+          <EventDetail
+            id={id}
+            eventId={selected}
+            me={me}
+            changed={week.reload}
+            onDeleted={() => {
+              setSelected(null);
+              week.reload();
+            }}
+          />
         </Drawer>
       )}
     </div>
@@ -368,6 +394,7 @@ function EventForm({
         label="开始时间（北京时间）"
         type="datetime-local"
         defaultValue={raid ? localTime(raid.starts_at) : defaultStart}
+        min={localTime(new Date().toISOString())}
         required
       />
       <TextField
@@ -599,7 +626,7 @@ function RoleSelect({ label, value, onChange }: { label: string; value: string; 
     </select>
   );
 }
-function EventDetail({ id, eventId, me, changed }: { id: string; eventId: string; me: Me; changed: () => void }) {
+function EventDetail({ id, eventId, me, changed, onDeleted }: { id: string; eventId: string; me: Me; changed: () => void; onDeleted: () => void }) {
   const query = useQuery<Raid>(`/guilds/${id}/events/${eventId}`);
   const profiles = useQuery<{ items: Profile[] }>("/profiles");
   const { styleLabel } = useProfileOptions();
@@ -613,15 +640,16 @@ function EventDetail({ id, eventId, me, changed }: { id: string; eventId: string
   );
   const [profile, setProfile] = useState(me.default_profile?.id || "");
   const [role, setRole] = useState("dps");
+  const [seat, setSeat] = useState<number | null>(null);
   const [assignProfile, setAssignProfile] = useState("");
   const [editing, setEditing] = useState(false);
   const confirm = useConfirm();
   const action = useAction(() => {
+    setSeat(null);
     query.reload();
     changed();
   });
   const raid = query.data;
-  const confirmedIn = (role: string) => raid!.confirmed_assignments.filter((item) => item.slot_role === role);
   const cancelButton = (assignment: Assignment, label: string) =>
     !raid!.is_locked &&
     (raid!.can_manage || assignment.user_id === me.user_id) && (
@@ -656,51 +684,48 @@ function EventDetail({ id, eventId, me, changed }: { id: string; eventId: string
           </header>
           {raid.is_locked && <p className="notice">场次已开始或已取消，排班与场次只读。</p>}
           <section className="drawer-section">
-            <h3>队伍需求</h3>
-            <div className="demand-grid">
-              {ROLES.map((position) => {
-                const used = confirmedIn(position).length;
-                const capacity = raid.capacities[position];
+            <h3>
+              队伍占位
+              <small>
+                {raid.confirmed_assignments.length}/{seatTotal(raid)}
+              </small>
+            </h3>
+            <div className="member-grid">
+              {seatsOf(raid).map((index) => {
+                const role = seatRole(raid, index);
+                const holder = raid.confirmed_assignments.find((item) => item.slot_index === index);
+                if (holder)
+                  return (
+                    <article className="member-chip" key={index}>
+                      <RoleIcon role={role} size={16} />
+                      <div>
+                        <strong title={holder.profile.name}>{holder.profile.name}</strong>
+                        <small>鹅力 {formatPower(holder.profile.power)}</small>
+                      </div>
+                      {cancelButton(holder, "取消")}
+                    </article>
+                  );
+                const pickable = !raid.is_locked && (raid.can_signup || (raid.can_manage && raid.status === "published"));
                 return (
-                  <div key={position} className={used >= capacity ? "is-full" : undefined}>
-                    <span>{roleName(position)}</span>
-                    <strong>
-                      {used}/{capacity}
-                    </strong>
-                    <small>{used >= capacity ? "已满" : `还缺 ${capacity - used} 人`}</small>
-                  </div>
+                  <button
+                    type="button"
+                    className="member-chip"
+                    key={index}
+                    disabled={!pickable}
+                    aria-pressed={seat === index}
+                    style={seat === index ? { borderColor: "var(--accent)", background: "var(--accent-soft)", textAlign: "left" } : { textAlign: "left" }}
+                    onClick={() => setSeat(seat === index ? null : index)}
+                  >
+                    <RoleIcon role={role} size={16} />
+                    <div>
+                      <strong style={{ color: "var(--muted)" }}>点击占位</strong>
+                      <small>{roleName(role)}</small>
+                    </div>
+                  </button>
                 );
               })}
             </div>
           </section>
-          {ROLES.filter((position) => raid.capacities[position] > 0).map((position) => (
-            <section className="drawer-section" key={position}>
-              <h3>
-                {roleName(position)}
-                <small>
-                  {confirmedIn(position).length}/{raid.capacities[position]}
-                </small>
-              </h3>
-              {confirmedIn(position).length ? (
-                <div className="member-grid">
-                  {confirmedIn(position).map((assignment) => (
-                    <article className="member-chip" key={assignment.id}>
-                      <Avatar name={assignment.profile.name} id={assignment.user_id} size="sm" />
-                      <div>
-                        <strong>{assignment.profile.name}</strong>
-                        <small>
-                          鹅力 {assignment.profile.power} · {assignment.profile.styles.map(styleLabel).join("、")}
-                        </small>
-                      </div>
-                      {cancelButton(assignment, "取消")}
-                    </article>
-                  ))}
-                </div>
-              ) : (
-                <p className="lane-empty">还没有人</p>
-              )}
-            </section>
-          ))}
           {!!raid.waitlist_assignments.length && (
             <section className="drawer-section">
               <h3>
@@ -723,7 +748,7 @@ function EventDetail({ id, eventId, me, changed }: { id: string; eventId: string
           )}
           {raid.my_assignment && (
             <p className="notice notice-accent">
-              我的安排：{roleName(raid.my_assignment.slot_role)} · {statusName(raid.my_assignment.status)}。更换角色或定位需要先取消再报名。
+              我的安排：{roleName(raid.my_assignment.slot_role)} · {statusName(raid.my_assignment.status)}。更换座位需要先取消再占位。
             </p>
           )}
           {raid.can_signup && (
@@ -740,22 +765,33 @@ function EventDetail({ id, eventId, me, changed }: { id: string; eventId: string
                     ))}
                   </select>
                 </Field>
-                <Field label="本场定位">
-                  <RoleSelect label="报名定位" value={role} onChange={setRole} />
-                </Field>
+                {raid.confirmed_assignments.length >= seatTotal(raid) && (
+                  <Field label="候补定位">
+                    <RoleSelect label="候补定位" value={role} onChange={setRole} />
+                  </Field>
+                )}
               </div>
-              <p className="form-note">报名即确认占位；账号同一时间只能参加一场，满员后进入候补。</p>
+              <p className="form-note">
+                {raid.confirmed_assignments.length >= seatTotal(raid)
+                  ? "座位已满，报名将进入候补；"
+                  : seat
+                    ? `已选 ${seat} 号 · ${roleName(seatRole(raid, seat))}；`
+                    : "请先点选上方空座位；"}
+                账号同一时间只能参加一场。
+              </p>
               <Button
                 variant="primary"
                 block
-                disabled={action.busy || !profile}
+                disabled={action.busy || !profile || (raid.confirmed_assignments.length < seatTotal(raid) && !seat)}
                 onClick={() =>
                   action.run(
                     () =>
                       api(
                         `/events/${eventId}/assignments`,
                         "POST",
-                        { action: "signup", profile_id: profile, slot_role: role },
+                        raid.confirmed_assignments.length >= seatTotal(raid)
+                          ? { action: "signup", profile_id: profile, slot_role: role }
+                          : { action: "signup", profile_id: profile, slot_role: seatRole(raid, seat!), slot_index: seat },
                         idempotency(),
                       ),
                     "已报名",
@@ -793,18 +829,17 @@ function EventDetail({ id, eventId, me, changed }: { id: string; eventId: string
                       )),
                     )}
                   </select>
-                  <RoleSelect label="指派定位" value={role} onChange={setRole} />
                   <Button
                     variant="primary"
                     icon={UserPlus}
-                    disabled={action.busy || !assignProfile || raid.status !== "published"}
+                    disabled={action.busy || !assignProfile || !seat || raid.status !== "published"}
                     onClick={() =>
                       action.run(
                         () =>
                           api(
                             `/events/${eventId}/assignments`,
                             "POST",
-                            { action: "assign", profile_id: assignProfile, slot_role: role },
+                            { action: "assign", profile_id: assignProfile, slot_role: seatRole(raid, seat!), slot_index: seat },
                             idempotency(),
                           ),
                         "已指派",
@@ -814,6 +849,7 @@ function EventDetail({ id, eventId, me, changed }: { id: string; eventId: string
                     指派
                   </Button>
                 </div>
+                <p className="form-note">{seat ? `已选 ${seat} 号 · ${roleName(seatRole(raid, seat))}` : "请先点选上方空座位，再指派成员"}</p>
                 <Pager
                   page={memberPage}
                   total={members.data?.total || 0}
@@ -844,33 +880,63 @@ function EventDetail({ id, eventId, me, changed }: { id: string; eventId: string
           )}
           {raid.can_manage && !editing && (
             <footer className="drawer-actions">
-              <Button
-                variant="danger-ghost"
-                disabled={action.busy}
-                onClick={async () => {
-                  if (
-                    await confirm({
-                      title: "取消场次",
-                      body: `取消「${raid.title}」后，已报名的成员会收到通知，现有排班保留为只读记录。`,
-                      confirmLabel: "取消场次",
-                      danger: true,
-                    })
-                  )
-                    action.run(
-                      () =>
-                        api(`/guilds/${id}/events/${eventId}`, "DELETE", undefined, {
-                          "X-Expected-Version": String(raid.version),
-                        }),
-                      "场次已取消",
-                    );
-                }}
-              >
-                取消场次
-              </Button>
+              {!raid.is_locked && (
+                <Button
+                  variant="danger-ghost"
+                  disabled={action.busy}
+                  onClick={async () => {
+                    if (
+                      await confirm({
+                        title: "取消场次",
+                        body: `取消「${raid.title}」后，已报名的成员会收到通知，现有排班保留为只读记录。`,
+                        confirmLabel: "取消场次",
+                        danger: true,
+                      })
+                    )
+                      action.run(
+                        () =>
+                          api(`/guilds/${id}/events/${eventId}`, "DELETE", undefined, {
+                            "X-Expected-Version": String(raid.version),
+                          }),
+                        "场次已取消",
+                      );
+                  }}
+                >
+                  取消场次
+                </Button>
+              )}
+              {(raid.status === "cancelled" || Date.parse(raid.starts_at) > Date.now()) && (
+                <Button
+                  variant="danger-ghost"
+                  icon={Trash2}
+                  disabled={action.busy}
+                  onClick={async () => {
+                    const notify = raid.status === "published";
+                    if (
+                      await confirm({
+                        title: notify ? "取消并删除场次" : "删除场次",
+                        body: notify
+                          ? `删除「${raid.title}」后无法恢复，已报名的成员会收到取消通知。`
+                          : `删除「${raid.title}」后无法恢复，场次及其排班记录会被清除。`,
+                        confirmLabel: notify ? "取消并删除" : "删除",
+                        danger: true,
+                      })
+                    )
+                      action.run(async () => {
+                        await api(`/guilds/${id}/events/${eventId}/permanent`, "DELETE");
+                        onDeleted();
+                      }, "场次已删除");
+                  }}
+                >
+                  {raid.status === "published" ? "取消并删除" : "删除场次"}
+                </Button>
+              )}
               <span className="spacer" />
-              <Button icon={Pencil} onClick={() => setEditing(true)}>
-                编辑场次
-              </Button>
+              {!raid.is_locked && (
+                <Button icon={Pencil} onClick={() => setEditing(true)}>
+                  编辑场次
+                </Button>
+              )}
               {raid.status === "draft" && (
                 <Button
                   variant="primary"

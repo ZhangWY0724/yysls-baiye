@@ -181,6 +181,7 @@ public sealed class BusinessTests : IAsyncLifetime
         await Data(a, $"/events/{raid}/assignments/{confirmed.GetProperty("assignment_id").GetGuid()}", "DELETE");
         var detail = await Data(a, $"/guilds/{guild}/events/{raid}");
         Assert.Equal(1, detail.GetProperty("confirmed_assignments").GetArrayLength()); Assert.Equal(0, detail.GetProperty("waitlist_assignments").GetArrayLength());
+        Assert.Equal(1, detail.GetProperty("confirmed_assignments")[0].GetProperty("slot_index").GetInt32());
         var vacantProfile = results[0].GetProperty("status").GetString() == "confirmed" ? profileA : profileB;
         var full = await Data(a, $"/events/{raid}/assignments", "POST", new { action = "assign", profile_id = vacantProfile, slot_role = "tank" }, 409, true);
         Assert.Equal("CAPACITY_CONFLICT", full.GetProperty("code").GetString());

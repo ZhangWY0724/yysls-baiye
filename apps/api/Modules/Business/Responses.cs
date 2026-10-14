@@ -3,10 +3,10 @@ namespace Yanyun.Api.Modules.Business;
 public sealed record PagedResponse<T>(T[] Items, int Page, int PageSize, int Total);
 public sealed record ItemsResponse<T>(T[] Items);
 public sealed record CursorResponse<T>(T[] Items, string? NextCursor);
-public sealed record ProfileResponse(Guid Id, Guid UserId, string Name, string Server, int Power, string[] Styles,
+public sealed record ProfileResponse(Guid Id, Guid UserId, string Name, string Server, decimal Power, string[] Styles,
     OnlineSlot[] OnlineSlots, string Bio, bool IsDefault, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt);
-public record ProfileSummaryResponse(Guid ProfileId, Guid UserId, string Name, string Server, int Power, string[] Styles);
-public sealed record PublicProfileResponse(Guid ProfileId, Guid UserId, string Name, string Server, int Power, string[] Styles,
+public record ProfileSummaryResponse(Guid ProfileId, Guid UserId, string Name, string Server, decimal Power, string[] Styles);
+public sealed record PublicProfileResponse(Guid ProfileId, Guid UserId, string Name, string Server, decimal Power, string[] Styles,
     OnlineSlot[] OnlineSlots, string Bio) : ProfileSummaryResponse(ProfileId, UserId, Name, Server, Power, Styles);
 public sealed record MembershipResponse(Guid MembershipId, Guid GuildId, string GuildName, string Role,
     DateTimeOffset JoinedAt, long GuildVersion);
@@ -40,7 +40,7 @@ public sealed record TemplateResponse(Guid Id, Guid? GuildId, string Name, int N
     int DefaultDurationMin, long Version, DateTimeOffset? ArchivedAt);
 public sealed record CapacityResponse(int Tank, int Healer, int Dps);
 public sealed record AssignmentResponse(Guid Id, Guid UserId, Guid MembershipId, ProfileSummaryResponse Profile,
-    string SlotRole, string Status, DateTimeOffset CreatedAt, int? WaitlistPosition);
+    string SlotRole, int? SlotIndex, string Status, DateTimeOffset CreatedAt, int? WaitlistPosition);
 public sealed record EventResponse(Guid Id, Guid GuildId, Guid TemplateId, string TemplateName, string Title,
     DateTimeOffset StartsAt, DateTimeOffset EndsAt, int DurationMin, string SignupMode, string Status, string Note,
     long Version, bool ReminderEnabled, int RemindMinutes, bool IsLocked, CapacityResponse Capacities,

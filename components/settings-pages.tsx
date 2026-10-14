@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { ChevronRight, Inbox, Mail, Pencil, Plus, Star, Trash2, UserX, X, Zap } from "lucide-react";
+import { ChevronRight, Inbox, Mail, Pencil, Plus, Star, Trash2, UserX, X, Bird } from "lucide-react";
 import { useState } from "react";
 import { api, clearSession } from "@/lib/api";
 import { Application, Invitation, Me, Option, Page, Profile } from "@/lib/contracts";
@@ -19,6 +19,7 @@ import {
   useQuery,
   value,
   WEEKDAYS,
+  formatPower,
 } from "./business-ui";
 import { OnlineTime } from "./online-time";
 import {
@@ -124,7 +125,7 @@ export function SettingsPage({ me, reload }: { me: Me; reload: () => Promise<voi
                     )}
                   </strong>
                   <small>
-                    {serverName(profile.server)} · <Zap size={12} strokeWidth={1.75} aria-hidden /> {profile.power} ·{" "}
+                    {serverName(profile.server)} · <Bird size={12} strokeWidth={1.75} aria-hidden /> {formatPower(profile.power)} ·{" "}
                     {profile.styles.map(options.styleLabel).join(" / ")}
                   </small>
                 </span>
@@ -236,7 +237,7 @@ function ProfileForm({
               ))}
             </select>
           </Field>
-          <TextField name="power" label="鹅力" type="number" min={0} max={2147483647} defaultValue={profile?.power || 0} required />
+          <TextField name="power" label="鹅力" type="number" min={0} max={99999999.9999} step="0.0001" defaultValue={profile?.power ?? 0} required />
         </div>
         <fieldset className="field-group">
           <legend className="field-label">流派（至少一项）</legend>

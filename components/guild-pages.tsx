@@ -13,7 +13,7 @@ import {
   UserMinus,
   UserPlus,
   Users,
-  Zap,
+  Bird,
 } from "lucide-react";
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -52,6 +52,7 @@ import {
   useQuery,
   value,
   WEEKDAYS,
+  formatPower,
 } from "./business-ui";
 import { formatTime, OnlineTime } from "./online-time";
 import { TemplatesPanel } from "./raid-pages";
@@ -334,8 +335,8 @@ export function GuildHome({ id, me, reload }: { id: string; me: Me; reload: Relo
                         <small>{profile.styles.map(styleLabel).join("、") || "未设置流派"}</small>
                       </span>
                       <span className="power">
-                        <Zap size={14} strokeWidth={1.75} aria-hidden />
-                        {profile.power}
+                        <Bird size={14} strokeWidth={1.75} aria-hidden />
+                        {formatPower(profile.power)}
                       </span>
                     </div>
                   ))}
@@ -791,7 +792,7 @@ export function MembersPage({ id, me, reload }: { id: string; me: Me; reload: Re
                     </strong>
                     {item.message && <span className="list-desc">{item.message}</span>}
                     <small>
-                      {item.applicant ? `鹅力 ${item.applicant.power} · ${serverName(item.applicant.server)} · ` : ""}
+                      {item.applicant ? `鹅力 ${formatPower(item.applicant.power)} · ${serverName(item.applicant.server)} · ` : ""}
                       {date(item.created_at)}
                     </small>
                   </span>
@@ -1074,8 +1075,8 @@ export function PlayersPage({ id, me }: { id?: string; me: Me }) {
                 title={profile.name}
                 actions={
                   <span className="power">
-                    <Zap size={14} strokeWidth={1.75} aria-hidden />
-                    鹅力 {profile.power}
+                    <Bird size={14} strokeWidth={1.75} aria-hidden />
+                    鹅力 {formatPower(profile.power)}
                   </span>
                 }
               >
@@ -1160,8 +1161,8 @@ export function PlayersPage({ id, me }: { id?: string; me: Me }) {
                     <StatusPill tone="warn">求组</StatusPill>
                   </header>
                   <p className="power">
-                    <Zap size={14} strokeWidth={1.75} aria-hidden />
-                    鹅力 <strong>{profile?.power ?? "未设置"}</strong>
+                    <Bird size={14} strokeWidth={1.75} aria-hidden />
+                    鹅力 <strong>{profile ? formatPower(profile.power) : "未设置"}</strong>
                     {profile && <span>· {serverName(profile.server)}</span>}
                   </p>
                   <div className="tag-list">

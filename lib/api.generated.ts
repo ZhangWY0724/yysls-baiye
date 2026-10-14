@@ -10751,6 +10751,8 @@ export interface components {
             membership_id: string;
             profile: components["schemas"]["ProfileSummaryResponse"];
             slot_role: string;
+            /** Format: int32 */
+            slot_index: null | number;
             status: string;
             /** Format: date-time */
             created_at: string;
@@ -10762,6 +10764,8 @@ export interface components {
             /** Format: uuid */
             profile_id: string;
             slot_role: string;
+            /** Format: int32 */
+            slot_index?: null | number;
         };
         AuthResult: {
             access_token: string;
@@ -11252,7 +11256,7 @@ export interface components {
             user_id: string;
             name: string;
             server: string;
-            /** Format: int32 */
+            /** Format: double */
             power: number;
             styles: string[];
             online_slots: components["schemas"]["OnlineSlot"][];
@@ -11270,14 +11274,14 @@ export interface components {
             user_id: string;
             name: string;
             server: string;
-            /** Format: int32 */
+            /** Format: double */
             power: number;
             styles: string[];
         };
         ProfileWrite: {
             name?: null | string;
             server?: null | string;
-            /** Format: int32 */
+            /** Format: double */
             power?: null | number;
             styles?: null | string[];
             online_slots?: null | components["schemas"]["OnlineSlot"][];
@@ -11292,7 +11296,7 @@ export interface components {
             user_id: string;
             name: string;
             server: string;
-            /** Format: int32 */
+            /** Format: double */
             power: number;
             styles: string[];
         };

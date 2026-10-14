@@ -107,7 +107,7 @@ public sealed class BusinessViews(YanyunDbContext database)
         {
             var profile = profiles[assignment.ProfileId];
             views.Add((assignment, new(assignment.Id, assignment.UserId, assignment.MembershipId,
-                Summary(profile), assignment.SlotRole, assignment.Status, assignment.CreatedAt,
+                Summary(profile), assignment.SlotRole, assignment.SlotIndex, assignment.Status, assignment.CreatedAt,
                 assignment.Status == "waitlist" ? (int?)assignments.Count(other =>
                     other.Status == "waitlist" && other.SlotRole == assignment.SlotRole &&
                     (other.CreatedAt < assignment.CreatedAt || other.CreatedAt == assignment.CreatedAt && other.Id.CompareTo(assignment.Id) <= 0)) : null)));

@@ -9,7 +9,7 @@ public sealed class ProfileWrite
 {
     [StringLength(32, MinimumLength = 1)] public string? Name { get; set; }
     [RegularExpression("^(official|channel)$")] public string? Server { get; set; }
-    [Range(0, int.MaxValue)] public int? Power { get; set; }
+    [Range(typeof(decimal), "0", "99999999.9999")] public decimal? Power { get; set; }
     public string[]? Styles { get; set; }
     public OnlineSlot[]? OnlineSlots { get; set; }
     [StringLength(500)] public string? Bio { get; set; }
@@ -68,7 +68,7 @@ public sealed class EventWrite
     public long? ExpectedVersion { get; set; }
 }
 public sealed record AssignmentWrite([Required, RegularExpression("^(signup|assign)$")] string Action,
-    [property: JsonRequired] Guid ProfileId, [Required, RegularExpression("^(tank|healer|dps)$")] string SlotRole);
+    [property: JsonRequired] Guid ProfileId, [Required, RegularExpression("^(tank|healer|dps)$")] string SlotRole, [Range(1, 10)] int? SlotIndex = null);
 public sealed record ReadNotificationsWrite(Guid[]? NotificationIds, bool? All);
 
 public static class BusinessJson

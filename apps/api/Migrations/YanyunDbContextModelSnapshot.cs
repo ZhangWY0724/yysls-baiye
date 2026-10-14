@@ -48,6 +48,10 @@ namespace Yanyun.Api.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("profile_id");
 
+                    b.Property<int?>("SlotIndex")
+                        .HasColumnType("integer")
+                        .HasColumnName("slot_index");
+
                     b.Property<string>("SlotRole")
                         .IsRequired()
                         .HasColumnType("text")
@@ -70,6 +74,9 @@ namespace Yanyun.Api.Migrations
 
                     b.HasIndex("MembershipId");
 
+                    b.HasIndex("EventId", "SlotIndex")
+                        .IsUnique();
+
                     b.HasIndex("EventId", "UserId")
                         .IsUnique();
 
@@ -80,6 +87,8 @@ namespace Yanyun.Api.Migrations
                     b.ToTable("assignments", null, t =>
                         {
                             t.HasCheckConstraint("ck_assignment_role", "slot_role IN ('tank','healer','dps')");
+
+                            t.HasCheckConstraint("ck_assignment_seat", "slot_index IS NULL OR slot_index BETWEEN 1 AND 10");
 
                             t.HasCheckConstraint("ck_assignment_status", "status IN ('confirmed','waitlist')");
                         });
@@ -236,8 +245,9 @@ namespace Yanyun.Api.Migrations
                         .HasColumnType("jsonb")
                         .HasColumnName("online_slots_json");
 
-                    b.Property<int>("Power")
-                        .HasColumnType("integer")
+                    b.Property<decimal>("Power")
+                        .HasPrecision(12, 4)
+                        .HasColumnType("numeric(12,4)")
                         .HasColumnName("power");
 
                     b.Property<string>("Server")

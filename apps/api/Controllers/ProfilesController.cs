@@ -141,7 +141,7 @@ public sealed class ProfilesController(YanyunDbContext database, BusinessOperati
         if (request.Power is not null)
         {
             if (request.Power < 0) throw BusinessOperations.Invalid("鹅力不能为负数");
-            profile.Power = request.Power.Value;
+            profile.Power = Math.Round(request.Power.Value, 4, MidpointRounding.AwayFromZero);
         }
         if (request.Styles is not null)
         {

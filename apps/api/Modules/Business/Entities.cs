@@ -11,7 +11,7 @@ public sealed class GameProfile : Entity
     public Guid UserId { get; set; }
     public string Name { get; set; } = "";
     public string Server { get; set; } = "official";
-    public int Power { get; set; }
+    public decimal Power { get; set; }
     public string[] Styles { get; set; } = [];
     public string OnlineSlotsJson { get; set; } = "[]";
     public string Bio { get; set; } = "";
@@ -102,6 +102,7 @@ public sealed class Assignment : Entity
     public Guid MembershipId { get; set; }
     public Guid AssignedBy { get; set; }
     public string SlotRole { get; set; } = "dps";
+    public int? SlotIndex { get; set; }
     public string Status { get; set; } = "confirmed";
 }
 public sealed class Notification : Entity
